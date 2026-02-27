@@ -23,7 +23,7 @@ Use Qiuyun's script to compute the gradient nonlinearity warp field (C2 scanner)
 Compute the 3x3 gradient deviation tensor per voxel from the relative warp field.
 
 - **Input**: `*_deform_grad_rel.nii.gz` from Step 1
-- **Output**: `grad_dev.nii.gz` `[x,y,z,9]` — 9 elements of the L matrix per voxel
+- **Output**: `grad_dev_{x,y,z}.nii.gz` — 3 files, each `[x,y,z,3]`, one row of the L matrix per voxel
 
 ```bash
 ${FSLDIR}/bin/calc_grad_perc_dev \
@@ -38,7 +38,14 @@ ${FSLDIR}/bin/calc_grad_perc_dev \
 This is the direction-averaged b-value scaling factor per voxel (unitless, ~1.0 for ideal gradients).
 
 ```matlab
-g = niftiread('grad_dev.nii.gz');
+% Load grad_dev (3 files, each [x,y,z,3] = one row of L matrix)
+gx = niftiread('grad_dev_x.nii.gz');  % L(1,:) per voxel
+gy = niftiread('grad_dev_y.nii.gz');  % L(2,:) per voxel
+gz = niftiread('grad_dev_z.nii.gz');  % L(3,:) per voxel
+
+% Concatenate to [x,y,z,9]: L11,L12,L13, L21,L22,L23, L31,L32,L33
+g = cat(4, gx, gy, gz);
+
 dims = size(g, 1:3);
 b_scale = zeros(dims, 'single');
 for i = 1:dims(1)
