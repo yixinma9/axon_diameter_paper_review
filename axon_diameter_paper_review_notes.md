@@ -1,6 +1,6 @@
 # Gradient Nonlinearity Correction: b_scale for AxCaliber-SMT
 
-Reference: QT (Qiuyun Fan), WashU HCP pipeline
+Reference: QT (Qiuyun Fan)
 
 ---
 
