@@ -147,13 +147,14 @@ for ig = 1:Ngroups
     results(ig).DeR_fit_corr = DeR_fit_corr;
 end
 
-%% Step 6. Quantitative evaluation — stratified by axon radius
-r_bins = [0 1; 1 2; 2 3; 3 4; 4 5];
+%% Step 6. Quantitative evaluation — stratified by axon radius (finer bins)
+r_bins = [0 0.5; 0.5 1; 1 1.5; 1.5 2; 2 3; 3 4; 4 5];
 Nbins = size(r_bins, 1);
 
 for ig = 1:Ngroups
     fprintf('\n========== %s ==========\n', results(ig).group_name);
-    fprintf('%-15s %6s %10s %10s %10s %10s\n', 'r range', 'N', 'Bias(unc)', 'Bias(cor)', 'RMSE(unc)', 'RMSE(cor)');
+    fprintf('%-15s %6s %10s %10s %10s %10s %10s %10s\n', ...
+            'r range', 'N', 'Bias(unc)', 'Bias(cor)', 'Med(unc)', 'Med(cor)', 'RMSE(unc)', 'RMSE(cor)');
 
     for ib = 1:Nbins
         idx = results(ig).r_true >= r_bins(ib,1) & results(ig).r_true < r_bins(ib,2);
@@ -162,22 +163,39 @@ for ig = 1:Ngroups
         err_unc = results(ig).r_fit_uncorr(idx) - results(ig).r_true(idx);
         err_cor = results(ig).r_fit_corr(idx)   - results(ig).r_true(idx);
 
-        fprintf('[%g-%g] um %6d %+10.4f %+10.4f %10.4f %10.4f\n', ...
+        fprintf('[%.1f-%.1f] um %5d %+10.4f %+10.4f %+10.4f %+10.4f %10.4f %10.4f\n', ...
                 r_bins(ib,1), r_bins(ib,2), sum(idx), ...
-                mean(err_unc), mean(err_cor), sqrt(mean(err_unc.^2)), sqrt(mean(err_cor.^2)));
+                mean(err_unc), mean(err_cor), median(err_unc), median(err_cor), ...
+                sqrt(mean(err_unc.^2)), sqrt(mean(err_cor.^2)));
     end
 
     % Overall
     err_unc = results(ig).r_fit_uncorr - results(ig).r_true;
     err_cor = results(ig).r_fit_corr   - results(ig).r_true;
-    fprintf('%-15s %6d %+10.4f %+10.4f %10.4f %10.4f\n', 'Overall', ...
+    fprintf('%-15s %5d %+10.4f %+10.4f %+10.4f %+10.4f %10.4f %10.4f\n', 'Overall', ...
             numel(err_unc), mean(err_unc), mean(err_cor), ...
+            median(err_unc), median(err_cor), ...
             sqrt(mean(err_unc.^2)), sqrt(mean(err_cor.^2)));
 
     results(ig).bias_uncorr = mean(err_unc);
     results(ig).bias_corr   = mean(err_cor);
     results(ig).rmse_uncorr = sqrt(mean(err_unc.^2));
     results(ig).rmse_corr   = sqrt(mean(err_cor.^2));
+end
+
+%% Step 6b. Scatter: error vs r_true (to see full error distribution)
+figure('unit','inch','position',[0 0 12 5]);
+for ig = 1:Ngroups
+    subplot(1, Ngroups, ig);
+    err_unc = results(ig).r_fit_uncorr - results(ig).r_true;
+    err_cor = results(ig).r_fit_corr   - results(ig).r_true;
+    scatter(results(ig).r_true, err_unc, 8, [0.8 0.3 0.3], '.', 'MarkerFaceAlpha', 0.3); hold on;
+    scatter(results(ig).r_true, err_cor, 8, [0.3 0.3 0.8], '.', 'MarkerFaceAlpha', 0.3);
+    yline(0, 'k-', 'LineWidth', 1);
+    xlabel('r true (\mum)'); ylabel('r fit - r true (\mum)');
+    title(results(ig).group_name);
+    legend({'Uncorrected', 'Corrected'}, 'Location', 'best');
+    grid on;
 end
 
 %% Step 7. Plot: scatter (2 groups x 2 methods) with metrics in title
