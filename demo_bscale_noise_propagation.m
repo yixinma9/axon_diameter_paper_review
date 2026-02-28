@@ -147,22 +147,37 @@ for ig = 1:Ngroups
     results(ig).DeR_fit_corr = DeR_fit_corr;
 end
 
-%% Step 6. Quantitative evaluation
-fprintf('\n========== Quantitative Evaluation ==========\n');
-fprintf('%-30s %10s %10s %10s %10s\n', '', 'Bias(unc)', 'Bias(cor)', 'RMSE(unc)', 'RMSE(cor)');
+%% Step 6. Quantitative evaluation — stratified by axon radius
+r_bins = [0 1; 1 2; 2 3; 3 4];
+Nbins = size(r_bins, 1);
+
 for ig = 1:Ngroups
+    fprintf('\n========== %s ==========\n', results(ig).group_name);
+    fprintf('%-15s %6s %10s %10s %10s %10s\n', 'r range', 'N', 'Bias(unc)', 'Bias(cor)', 'RMSE(unc)', 'RMSE(cor)');
+
+    for ib = 1:Nbins
+        idx = results(ig).r_true >= r_bins(ib,1) & results(ig).r_true < r_bins(ib,2);
+        if sum(idx) == 0; continue; end
+
+        err_unc = results(ig).r_fit_uncorr(idx) - results(ig).r_true(idx);
+        err_cor = results(ig).r_fit_corr(idx)   - results(ig).r_true(idx);
+
+        fprintf('[%g-%g] um %6d %+10.4f %+10.4f %10.4f %10.4f\n', ...
+                r_bins(ib,1), r_bins(ib,2), sum(idx), ...
+                mean(err_unc), mean(err_cor), sqrt(mean(err_unc.^2)), sqrt(mean(err_cor.^2)));
+    end
+
+    % Overall
     err_unc = results(ig).r_fit_uncorr - results(ig).r_true;
     err_cor = results(ig).r_fit_corr   - results(ig).r_true;
-    bias_unc  = mean(err_unc);
-    bias_cor  = mean(err_cor);
-    rmse_unc  = sqrt(mean(err_unc.^2));
-    rmse_cor  = sqrt(mean(err_cor.^2));
-    fprintf('%-30s %+10.4f %+10.4f %10.4f %10.4f\n', results(ig).group_name, ...
-            bias_unc, bias_cor, rmse_unc, rmse_cor);
-    results(ig).bias_uncorr = bias_unc;
-    results(ig).bias_corr   = bias_cor;
-    results(ig).rmse_uncorr = rmse_unc;
-    results(ig).rmse_corr   = rmse_cor;
+    fprintf('%-15s %6d %+10.4f %+10.4f %10.4f %10.4f\n', 'Overall', ...
+            numel(err_unc), mean(err_unc), mean(err_cor), ...
+            sqrt(mean(err_unc.^2)), sqrt(mean(err_cor.^2)));
+
+    results(ig).bias_uncorr = mean(err_unc);
+    results(ig).bias_corr   = mean(err_cor);
+    results(ig).rmse_uncorr = sqrt(mean(err_unc.^2));
+    results(ig).rmse_corr   = sqrt(mean(err_cor.^2));
 end
 
 %% Step 7. Plot: scatter (2 groups x 2 methods) with metrics in title
@@ -192,7 +207,45 @@ for ig = 1:Ngroups
           results(ig).group_name, mean(err_cor), sqrt(mean(err_cor.^2))));
 end
 
-%% Step 8. Plot: error distribution (corrected vs uncorrected per group)
+%% Step 8. Bar plot: bias & RMSE by r-bin for each group
+figure('unit','inch','position',[0 0 14 8]);
+for ig = 1:Ngroups
+    bias_unc_bins = zeros(Nbins, 1);
+    bias_cor_bins = zeros(Nbins, 1);
+    rmse_unc_bins = zeros(Nbins, 1);
+    rmse_cor_bins = zeros(Nbins, 1);
+
+    for ib = 1:Nbins
+        idx = results(ig).r_true >= r_bins(ib,1) & results(ig).r_true < r_bins(ib,2);
+        if sum(idx) == 0; continue; end
+        err_unc = results(ig).r_fit_uncorr(idx) - results(ig).r_true(idx);
+        err_cor = results(ig).r_fit_corr(idx)   - results(ig).r_true(idx);
+        bias_unc_bins(ib) = mean(err_unc);
+        bias_cor_bins(ib) = mean(err_cor);
+        rmse_unc_bins(ib) = sqrt(mean(err_unc.^2));
+        rmse_cor_bins(ib) = sqrt(mean(err_cor.^2));
+    end
+
+    bin_labels = arrayfun(@(i) sprintf('%g-%g', r_bins(i,1), r_bins(i,2)), 1:Nbins, 'uni', 0);
+
+    % Bias
+    subplot(2, Ngroups, ig);
+    bar(categorical(bin_labels, bin_labels), [bias_unc_bins, bias_cor_bins]);
+    ylabel('Bias (\mum)'); xlabel('r true (\mum)');
+    legend({'Uncorrected', 'Corrected'}, 'Location', 'best');
+    title(sprintf('%s — Bias', results(ig).group_name));
+    yline(0, 'k--'); grid on;
+
+    % RMSE
+    subplot(2, Ngroups, ig + Ngroups);
+    bar(categorical(bin_labels, bin_labels), [rmse_unc_bins, rmse_cor_bins]);
+    ylabel('RMSE (\mum)'); xlabel('r true (\mum)');
+    legend({'Uncorrected', 'Corrected'}, 'Location', 'best');
+    title(sprintf('%s — RMSE', results(ig).group_name));
+    grid on;
+end
+
+%% Step 9. Plot: error distribution (corrected vs uncorrected per group)
 figure('unit','inch','position',[0 0 10 4]);
 for ig = 1:Ngroups
     subplot(1, Ngroups, ig);
@@ -211,4 +264,4 @@ end
 
 %% Save results
 save('bscale_noise_propagation_results.mat', 'results', 'Xrange', 'b_scale_samples', 'group_names', ...
-     'r_true', 'f_true', 'fcsf_true', 'DeR_true');
+     'r_true', 'f_true', 'fcsf_true', 'DeR_true', 'r_bins');
