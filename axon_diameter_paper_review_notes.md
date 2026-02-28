@@ -23,7 +23,7 @@ Use Qiuyun's script to compute the gradient nonlinearity warp field (C2 scanner)
 Compute the 3x3 gradient deviation tensor per voxel from the relative warp field.
 
 - **Input**: `*_deform_grad_rel.nii.gz` from Step 1
-- **Output**: `grad_dev_{x,y,z}.nii.gz` — 3 files, each `[x,y,z,3]`, one row of the L matrix per voxel
+- **Output**: `grad_dev_{x,y,z}.nii.gz` — 3 files, each `[x,y,z,3]`
 
 ```bash
 ${FSLDIR}/bin/calc_grad_perc_dev \
@@ -31,21 +31,38 @@ ${FSLDIR}/bin/calc_grad_perc_dev \
     -o /autofs/cluster/connectome2/Bay8_C2/bids/derivatives/processed_dwi/sub-001/gnc/grad_dev
 ```
 
-## Step 3. Compute b_scale map in MATLAB
+Merge into a single 9-volume file (matching QT's `grad_dev.nii.gz` format):
 
-`b_scale = trace(M'*M)/3` where `M = I + L`
+```bash
+fslmerge -t grad_dev.nii.gz grad_dev_x.nii.gz grad_dev_y.nii.gz grad_dev_z.nii.gz
+```
 
-This is the direction-averaged b-value scaling factor per voxel (unitless, ~1.0 for ideal gradients).
+## Step 3. Correct bvals/bvecs per voxel (QT's method)
+
+For a given voxel `(i, j, k)`:
 
 ```matlab
-% Load grad_dev (3 files, each [x,y,z,3] = one row of L matrix)
-gx = niftiread('grad_dev_x.nii.gz');  % L(1,:) per voxel
-gy = niftiread('grad_dev_y.nii.gz');  % L(2,:) per voxel
-gz = niftiread('grad_dev_z.nii.gz');  % L(3,:) per voxel
+g = read_avw('grad_dev.nii.gz');   % [x,y,z,9]
+bvecs = load('bvecs');              % 3xN
+bvals = load('bvals');              % 1xN
+L = reshape(squeeze(g(i,j,k,:)), 3, 3);
+I = eye(3);
 
-% Concatenate to [x,y,z,9]: L11,L12,L13, L21,L22,L23, L31,L32,L33
-g = cat(4, gx, gy, gz);
+% correct bvecs and calculate their norm
+v = (I+L)*bvecs;
+n = sqrt(sum(v.^2));
 
+% Normalise corrected bvecs and correct bvals
+new_bvecs = v ./ repmat(n,3,1);
+new_bvals = n.^2 .* bvals;
+```
+
+## Step 4. Compute b_scale map for spherical mean
+
+For spherical mean signal (direction-averaged), the scalar b_scale per voxel is the mean of `n^2` over all directions, which equals `trace((I+L)'*(I+L))/3`:
+
+```matlab
+g = read_avw('grad_dev.nii.gz');
 dims = size(g, 1:3);
 b_scale = zeros(dims, 'single');
 for i = 1:dims(1)

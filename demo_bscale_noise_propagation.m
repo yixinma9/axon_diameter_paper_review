@@ -5,13 +5,13 @@ addpath(genpath('/autofs/space/linen_001/users/Yixin/C2_protocoldesign-main/lib'
 gnc_dir = '/autofs/cluster/connectome2/Bay8_C2/bids/derivatives/processed_dwi/sub-001/gnc';
 mask_dir = '/autofs/cluster/connectome2/Bay8_C2/bids/derivatives/processed_dwi/sub-001';
 
-% Load grad_dev (3 files, each [x,y,z,3] = one row of L matrix)
-gx = niftiread(fullfile(gnc_dir, 'grad_dev_x.nii.gz'));
-gy = niftiread(fullfile(gnc_dir, 'grad_dev_y.nii.gz'));
-gz = niftiread(fullfile(gnc_dir, 'grad_dev_z.nii.gz'));
-g = cat(4, gx, gy, gz);
+% Load grad_dev (QT's method)
+% First run: fslmerge -t grad_dev.nii.gz grad_dev_x.nii.gz grad_dev_y.nii.gz grad_dev_z.nii.gz
+g = read_avw(fullfile(gnc_dir, 'grad_dev.nii.gz'));  % [x,y,z,9]
 
-% Compute b_scale = trace(M'*M)/3 where M = I + L
+% Compute b_scale per voxel (direction-averaged n^2)
+% Following QT: L = reshape(squeeze(g(i,j,k,:)),3,3); v = (I+L)*bvecs; n^2 = sum(v.^2)
+% For spherical mean: b_scale = mean(n^2) over directions = trace((I+L)'*(I+L))/3
 dims = size(g, 1:3);
 b_scale_map = zeros(dims, 'single');
 for i = 1:dims(1)
