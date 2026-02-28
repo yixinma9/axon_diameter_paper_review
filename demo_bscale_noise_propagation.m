@@ -55,9 +55,9 @@ legend({'b-scale', sprintf('33rd prc = %.3f', prc(1)), sprintf('67th prc = %.3f'
 Nsample = 500;
 rng(42);
 
-vals1 = b_scale_wm(group1_idx); vals1 = vals1(randperm(numel(vals1), min(Nsample, numel(vals1))));
-vals2 = b_scale_wm(group2_idx); vals2 = vals2(randperm(numel(vals2), min(Nsample, numel(vals2))));
-vals3 = b_scale_wm(group3_idx); vals3 = vals3(randperm(numel(vals3), min(Nsample, numel(vals3))));
+vals1 = double(b_scale_wm(group1_idx)); vals1 = vals1(randperm(numel(vals1), min(Nsample, numel(vals1))));
+vals2 = double(b_scale_wm(group2_idx)); vals2 = vals2(randperm(numel(vals2), min(Nsample, numel(vals2))));
+vals3 = double(b_scale_wm(group3_idx)); vals3 = vals3(randperm(numel(vals3), min(Nsample, numel(vals3))));
 
 b_scale_samples = {vals1, vals2, vals3};
 group_names = {sprintf('Group 1 (%.3f-%.3f)', min(vals1), max(vals1)), ...
