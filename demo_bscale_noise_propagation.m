@@ -5,9 +5,11 @@ addpath(genpath('/autofs/space/linen_001/users/Yixin/C2_protocoldesign-main/lib'
 gnc_dir = '/autofs/cluster/connectome2/Bay8_C2/bids/derivatives/processed_dwi/sub-001/gnc';
 mask_dir = '/autofs/cluster/connectome2/Bay8_C2/bids/derivatives/processed_dwi/sub-001';
 
-% Load grad_dev (QT's method)
-% First run: fslmerge -t grad_dev.nii.gz grad_dev_x.nii.gz grad_dev_y.nii.gz grad_dev_z.nii.gz
-g = single(niftiread(fullfile(gnc_dir, 'grad_dev.nii.gz')));  % [x,y,z,9]
+% Load grad_dev (QT's method) — 3 separate files, each [x,y,z,3]
+gx = single(niftiread(fullfile(gnc_dir, 'grad_dev_x.nii.gz')));
+gy = single(niftiread(fullfile(gnc_dir, 'grad_dev_y.nii.gz')));
+gz = single(niftiread(fullfile(gnc_dir, 'grad_dev_z.nii.gz')));
+g  = cat(4, gx, gy, gz);  % [x,y,z,9]
 
 % Compute b_scale per voxel (direction-averaged n^2)
 % Following QT: L = reshape(squeeze(g(i,j,k,:)),3,3); v = (I+L)*bvecs; n^2 = sum(v.^2)
