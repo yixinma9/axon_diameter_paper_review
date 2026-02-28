@@ -148,7 +148,7 @@ for ig = 1:Ngroups
 end
 
 %% Step 6. Quantitative evaluation — stratified by axon radius
-r_bins = [0 1; 1 2; 2 3; 3 4];
+r_bins = [0 1; 1 2; 2 3; 3 4; 4 5];
 Nbins = size(r_bins, 1);
 
 for ig = 1:Ngroups
