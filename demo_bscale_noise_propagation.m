@@ -7,7 +7,7 @@ mask_dir = '/autofs/cluster/connectome2/Bay8_C2/bids/derivatives/processed_dwi/s
 
 % Load grad_dev (QT's method)
 % First run: fslmerge -t grad_dev.nii.gz grad_dev_x.nii.gz grad_dev_y.nii.gz grad_dev_z.nii.gz
-g = read_avw(fullfile(gnc_dir, 'grad_dev.nii.gz'));  % [x,y,z,9]
+g = single(niftiread(fullfile(gnc_dir, 'grad_dev.nii.gz')));  % [x,y,z,9]
 
 % Compute b_scale per voxel (direction-averaged n^2)
 % Following QT: L = reshape(squeeze(g(i,j,k,:)),3,3); v = (I+L)*bvecs; n^2 = sum(v.^2)
