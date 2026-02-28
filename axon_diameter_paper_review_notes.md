@@ -68,7 +68,7 @@ b_scale = zeros(dims, 'single');
 for i = 1:dims(1)
     for j = 1:dims(2)
         for k = 1:dims(3)
-            L = reshape(squeeze(g(i,j,k,:)), 3, 3);
+            L = reshape(squeeze(g(i,j,k,:)), 3, 3) / 100;  % calc_grad_perc_dev outputs percentage
             M = eye(3) + L;
             b_scale(i,j,k) = trace(M' * M) / 3;
         end

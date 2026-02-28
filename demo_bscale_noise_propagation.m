@@ -17,7 +17,7 @@ b_scale_map = zeros(dims, 'single');
 for i = 1:dims(1)
     for j = 1:dims(2)
         for k = 1:dims(3)
-            L = reshape(squeeze(g(i,j,k,:)), 3, 3);
+            L = reshape(squeeze(g(i,j,k,:)), 3, 3) / 100;  % calc_grad_perc_dev outputs percentage
             M = eye(3) + L;
             b_scale_map(i,j,k) = trace(M' * M) / 3;
         end
@@ -122,7 +122,7 @@ for ig = 1:3
         S_clean = smt_true.AxonDiameterFWD([r_true(i), f_true(i), fcsf_true(i), DeR_true(i)], model);
 
         % Add Rician noise
-        S_noisy = abs(S_clean + 1/snr*randn(size(S_clean)) + 1j/snr*randn(size(S_clean)));
+        S_noisy = double(abs(S_clean + 1/snr*randn(size(S_clean)) + 1j/snr*randn(size(S_clean))));
 
         % Fit with nominal b (uncorrected)
         [r_fit_uncorr(i), f_fit_uncorr(i), fcsf_fit_uncorr(i), DeR_fit_uncorr(i)] = ...
