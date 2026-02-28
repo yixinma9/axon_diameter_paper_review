@@ -1,5 +1,5 @@
 clear; close all;
-addpath(genpath('/Users/hl624/Documents/GitHub/C2_protocoldesign/lib'));
+addpath(genpath('/autofs/space/linen_001/users/Yixin/C2_protocoldesign-main/lib'));
 
 %% Step 1. Load b_scale map and white matter mask
 gnc_dir = '/autofs/cluster/connectome2/Bay8_C2/bids/derivatives/processed_dwi/sub-001/gnc';
