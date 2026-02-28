@@ -35,34 +35,30 @@ b_scale_wm = b_scale_wm(b_scale_wm > 0);  % remove zeros
 fprintf('WM voxels: %d\n', numel(b_scale_wm));
 fprintf('b_scale range: [%.4f, %.4f]\n', min(b_scale_wm), max(b_scale_wm));
 
-%% Step 2. Plot b_scale distribution and split into 3 groups by percentile
-prc = prctile(b_scale_wm, [33.3, 66.7]);
-fprintf('Percentile boundaries: %.4f, %.4f\n', prc(1), prc(2));
-
-group1_idx = b_scale_wm <= prc(1);
-group2_idx = b_scale_wm > prc(1) & b_scale_wm <= prc(2);
-group3_idx = b_scale_wm > prc(2);
-
+%% Step 2. Plot b_scale distribution and split into 2 groups (< 1 and > 1)
 figure('unit','inch','position',[0 0 10 4]);
 histogram(b_scale_wm, 100, 'FaceColor', [0.7 0.7 0.7]); hold on;
-xline(prc(1), 'r--', 'LineWidth', 2);
-xline(prc(2), 'r--', 'LineWidth', 2);
+xline(1.0, 'r--', 'LineWidth', 2);
 xlabel('b-scale'); ylabel('count');
 title('b-scale distribution in white matter');
-legend({'b-scale', sprintf('33rd prc = %.3f', prc(1)), sprintf('67th prc = %.3f', prc(2))});
+legend({'b-scale', 'b-scale = 1.0'});
 
-%% Step 3. Sample 500 b_scale values per group
-Nsample = 500;
+group1_idx = b_scale_wm < 1;
+group2_idx = b_scale_wm > 1;
+fprintf('Group 1 (b_scale < 1): %d voxels\n', sum(group1_idx));
+fprintf('Group 2 (b_scale > 1): %d voxels\n', sum(group2_idx));
+
+%% Step 3. Sample 2000 b_scale values per group (following the distribution)
+Nsample = 2000;
 rng(42);
 
 vals1 = double(b_scale_wm(group1_idx)); vals1 = vals1(randperm(numel(vals1), min(Nsample, numel(vals1))));
 vals2 = double(b_scale_wm(group2_idx)); vals2 = vals2(randperm(numel(vals2), min(Nsample, numel(vals2))));
-vals3 = double(b_scale_wm(group3_idx)); vals3 = vals3(randperm(numel(vals3), min(Nsample, numel(vals3))));
 
-b_scale_samples = {vals1, vals2, vals3};
-group_names = {sprintf('Group 1 (%.3f-%.3f)', min(vals1), max(vals1)), ...
-               sprintf('Group 2 (%.3f-%.3f)', min(vals2), max(vals2)), ...
-               sprintf('Group 3 (%.3f-%.3f)', min(vals3), max(vals3))};
+Ngroups = 2;
+b_scale_samples = {vals1, vals2};
+group_names = {sprintf('b-scale < 1 (%.3f-%.3f)', min(vals1), max(vals1)), ...
+               sprintf('b-scale > 1 (%.3f-%.3f)', min(vals2), max(vals2))};
 
 %% Step 4. Setup AxCaliberSMT protocol (TractCaliber)
 b = [0.05 0.35 0.8 1.5 2.4 3.45 4.75 6 ...
@@ -94,7 +90,7 @@ DeR_true  = Xinit(4,:)';
 
 results = struct();
 
-for ig = 1:3
+for ig = 1:Ngroups
     fprintf('\n=== %s ===\n', group_names{ig});
     bscales = b_scale_samples{ig};
     N = numel(bscales);
@@ -114,7 +110,7 @@ for ig = 1:3
 
     tic;
     for i = 1:N
-        if mod(i, 50) == 0; fprintf('  voxel %d/%d\n', i, N); end
+        if mod(i, 100) == 0; fprintf('  voxel %d/%d\n', i, N); end
 
         % Effective b-value for this voxel
         b_eff = b * bscales(i);
@@ -154,7 +150,7 @@ end
 %% Step 6. Quantitative evaluation
 fprintf('\n========== Quantitative Evaluation ==========\n');
 fprintf('%-30s %10s %10s %10s %10s\n', '', 'Bias(unc)', 'Bias(cor)', 'RMSE(unc)', 'RMSE(cor)');
-for ig = 1:3
+for ig = 1:Ngroups
     err_unc = results(ig).r_fit_uncorr - results(ig).r_true;
     err_cor = results(ig).r_fit_corr   - results(ig).r_true;
     bias_unc  = mean(err_unc);
@@ -169,14 +165,14 @@ for ig = 1:3
     results(ig).rmse_corr   = rmse_cor;
 end
 
-%% Step 7. Plot: scatter (3 groups x 2 methods) with metrics in title
-figure('unit','inch','position',[0 0 15 8]);
-for ig = 1:3
+%% Step 7. Plot: scatter (2 groups x 2 methods) with metrics in title
+figure('unit','inch','position',[0 0 10 8]);
+for ig = 1:Ngroups
     err_unc = results(ig).r_fit_uncorr - results(ig).r_true;
     err_cor = results(ig).r_fit_corr   - results(ig).r_true;
 
     % Uncorrected
-    subplot(2, 3, ig);
+    subplot(2, Ngroups, ig);
     scatter(results(ig).r_true, results(ig).r_fit_uncorr, 10, '.');
     hold on; hr = refline(1,0); set(hr, 'color', 'k');
     xlabel('Ground truth r (\mum)'); ylabel('Fitted r (\mum)');
@@ -186,7 +182,7 @@ for ig = 1:3
           results(ig).group_name, mean(err_unc), sqrt(mean(err_unc.^2))));
 
     % Corrected
-    subplot(2, 3, ig + 3);
+    subplot(2, Ngroups, ig + Ngroups);
     scatter(results(ig).r_true, results(ig).r_fit_corr, 10, '.');
     hold on; hr = refline(1,0); set(hr, 'color', 'k');
     xlabel('Ground truth r (\mum)'); ylabel('Fitted r (\mum)');
@@ -197,9 +193,9 @@ for ig = 1:3
 end
 
 %% Step 8. Plot: error distribution (corrected vs uncorrected per group)
-figure('unit','inch','position',[0 0 15 4]);
-for ig = 1:3
-    subplot(1, 3, ig);
+figure('unit','inch','position',[0 0 10 4]);
+for ig = 1:Ngroups
+    subplot(1, Ngroups, ig);
     err_unc = results(ig).r_fit_uncorr - results(ig).r_true;
     err_cor = results(ig).r_fit_corr   - results(ig).r_true;
     histogram(err_unc, 50, 'FaceColor', [0.8 0.3 0.3], 'FaceAlpha', 0.5); hold on;
@@ -215,4 +211,4 @@ end
 
 %% Save results
 save('bscale_noise_propagation_results.mat', 'results', 'Xrange', 'b_scale_samples', 'group_names', ...
-     'r_true', 'f_true', 'fcsf_true', 'DeR_true', 'prc');
+     'r_true', 'f_true', 'fcsf_true', 'DeR_true');
