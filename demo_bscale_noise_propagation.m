@@ -151,9 +151,30 @@ for ig = 1:3
     results(ig).DeR_fit_corr = DeR_fit_corr;
 end
 
-%% Step 6. Plot: actual vs predicted axon radius (3 groups x 2 methods)
+%% Step 6. Quantitative evaluation
+fprintf('\n========== Quantitative Evaluation ==========\n');
+fprintf('%-30s %10s %10s %10s %10s\n', '', 'Bias(unc)', 'Bias(cor)', 'RMSE(unc)', 'RMSE(cor)');
+for ig = 1:3
+    err_unc = results(ig).r_fit_uncorr - results(ig).r_true;
+    err_cor = results(ig).r_fit_corr   - results(ig).r_true;
+    bias_unc  = mean(err_unc);
+    bias_cor  = mean(err_cor);
+    rmse_unc  = sqrt(mean(err_unc.^2));
+    rmse_cor  = sqrt(mean(err_cor.^2));
+    fprintf('%-30s %+10.4f %+10.4f %10.4f %10.4f\n', results(ig).group_name, ...
+            bias_unc, bias_cor, rmse_unc, rmse_cor);
+    results(ig).bias_uncorr = bias_unc;
+    results(ig).bias_corr   = bias_cor;
+    results(ig).rmse_uncorr = rmse_unc;
+    results(ig).rmse_corr   = rmse_cor;
+end
+
+%% Step 7. Plot: scatter (3 groups x 2 methods) with metrics in title
 figure('unit','inch','position',[0 0 15 8]);
 for ig = 1:3
+    err_unc = results(ig).r_fit_uncorr - results(ig).r_true;
+    err_cor = results(ig).r_fit_corr   - results(ig).r_true;
+
     % Uncorrected
     subplot(2, 3, ig);
     scatter(results(ig).r_true, results(ig).r_fit_uncorr, 10, '.');
@@ -161,7 +182,8 @@ for ig = 1:3
     xlabel('Ground truth r (\mum)'); ylabel('Fitted r (\mum)');
     xlim(Xrange(1,:)); ylim(Xrange(1,:));
     pbaspect([1 1 1]); box on; grid on;
-    title(sprintf('%s\nUncorrected', results(ig).group_name));
+    title(sprintf('%s\nUncorrected | bias=%.3f, RMSE=%.3f', ...
+          results(ig).group_name, mean(err_unc), sqrt(mean(err_unc.^2))));
 
     % Corrected
     subplot(2, 3, ig + 3);
@@ -170,7 +192,25 @@ for ig = 1:3
     xlabel('Ground truth r (\mum)'); ylabel('Fitted r (\mum)');
     xlim(Xrange(1,:)); ylim(Xrange(1,:));
     pbaspect([1 1 1]); box on; grid on;
-    title(sprintf('%s\nCorrected', results(ig).group_name));
+    title(sprintf('%s\nCorrected | bias=%.3f, RMSE=%.3f', ...
+          results(ig).group_name, mean(err_cor), sqrt(mean(err_cor.^2))));
+end
+
+%% Step 8. Plot: error distribution (corrected vs uncorrected per group)
+figure('unit','inch','position',[0 0 15 4]);
+for ig = 1:3
+    subplot(1, 3, ig);
+    err_unc = results(ig).r_fit_uncorr - results(ig).r_true;
+    err_cor = results(ig).r_fit_corr   - results(ig).r_true;
+    histogram(err_unc, 50, 'FaceColor', [0.8 0.3 0.3], 'FaceAlpha', 0.5); hold on;
+    histogram(err_cor, 50, 'FaceColor', [0.3 0.3 0.8], 'FaceAlpha', 0.5);
+    xline(mean(err_unc), 'r--', 'LineWidth', 2);
+    xline(mean(err_cor), 'b--', 'LineWidth', 2);
+    xline(0, 'k-', 'LineWidth', 1);
+    xlabel('Fitted r - True r (\mum)'); ylabel('Count');
+    title(sprintf('%s\nmean b-scale=%.3f', results(ig).group_name, mean(results(ig).bscales)));
+    legend({'Uncorrected', 'Corrected', ...
+            sprintf('Bias=%.3f', mean(err_unc)), sprintf('Bias=%.3f', mean(err_cor))});
 end
 
 %% Save results
