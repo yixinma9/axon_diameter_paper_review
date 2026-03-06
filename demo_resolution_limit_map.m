@@ -71,17 +71,17 @@ figure('unit','inch','position',[0 0 15 5]);
 tiledlayout(1, 3, 'TileSpacing', 'compact', 'Padding', 'compact');
 
 nexttile;
-imagesc(rot90(tSNR_map(:,:,best_slice),2)); axis image off; colorbar;
+imagesc(flipud(rot90(tSNR_map(:,:,best_slice),2))); axis image off; colorbar;
 title(sprintf('tSNR (slice %d)', best_slice)); clim([0 60]);
 
 nexttile;
 tmp = tSNR_map(:,:,best_slice); tmp(~wm_mask(:,:,best_slice)) = NaN;
-imagesc(rot90(tmp,2)); axis image off; colorbar;
+imagesc(flipud(rot90(tmp,2))); axis image off; colorbar;
 title('tSNR (WM)'); clim([0 60]);
 
 nexttile;
 tmp = dmin_map(:,:,best_slice); tmp(~wm_mask(:,:,best_slice)) = NaN;
-imagesc(rot90(tmp,2)); axis image off; colorbar;
+imagesc(flipud(rot90(tmp,2))); axis image off; colorbar;
 title('Resolution limit (\mum)'); clim([0 5]);
 
 exportgraphics(gcf, 'fig_resolution_limit_maps.pdf', 'ContentType', 'vector');
