@@ -42,6 +42,7 @@ xline(1.0, 'r--', 'LineWidth', 2);
 xlabel('b-scale'); ylabel('count');
 title('b-scale distribution in white matter');
 legend({'b-scale', 'b-scale = 1.0'});
+exportgraphics(gcf, 'fig1_bscale_distribution.pdf', 'ContentType', 'vector');
 
 group1_idx = b_scale_wm < 1;
 group2_idx = b_scale_wm > 1;
@@ -220,6 +221,7 @@ for ig = 1:Ngroups
     legend({'Uncorrected', 'Corrected'}, 'Location', 'best');
     grid on;
 end
+exportgraphics(gcf, 'fig2_error_vs_rtrue.pdf', 'ContentType', 'vector');
 
 %% Step 7. Plot: scatter (2 groups x 2 methods, filtered) with metrics in title
 figure('unit','inch','position',[0 0 10 8]);
@@ -250,6 +252,7 @@ for ig = 1:Ngroups
     title(sprintf('%s\nCorrected | bias=%.3f, RMSE=%.3f', ...
           results(ig).group_name, mean(err_cor), sqrt(mean(err_cor.^2))));
 end
+exportgraphics(gcf, 'fig3_scatter_gt_vs_fit.pdf', 'ContentType', 'vector');
 
 %% Step 8. Bar plot: bias & RMSE by r-bin for each group (filtered)
 r_bins_bar = [0 1; 1 2; 2 3; 3 4; 4 5];
@@ -295,6 +298,7 @@ for ig = 1:Ngroups
     title(sprintf('%s — RMSE (filtered)', results(ig).group_name));
     grid on;
 end
+exportgraphics(gcf, 'fig4_bar_bias_rmse.pdf', 'ContentType', 'vector');
 
 %% Step 9. Plot: error distribution (filtered)
 figure('unit','inch','position',[0 0 10 4]);
@@ -313,6 +317,7 @@ for ig = 1:Ngroups
     legend({'Uncorrected', 'Corrected', ...
             sprintf('Bias=%.3f', mean(err_unc)), sprintf('Bias=%.3f', mean(err_cor))});
 end
+exportgraphics(gcf, 'fig5_error_distribution.pdf', 'ContentType', 'vector');
 
 %% Save results
 save('bscale_noise_propagation_results.mat', 'results', 'Xrange', 'b_scale_samples', 'group_names', ...
