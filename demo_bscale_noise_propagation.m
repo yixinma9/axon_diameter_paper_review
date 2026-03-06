@@ -285,7 +285,7 @@ for ig = 1:Ngroups
     ylabel('Bias (\mum)'); xlabel('r true (\mum)');
     legend({'Uncorrected', 'Corrected'}, 'Location', 'best');
     title(sprintf('%s — Bias (filtered)', results(ig).group_name));
-    yline(0, 'k--'); grid on;
+    yline(0, 'k--', 'HandleVisibility', 'off'); grid on;
 
     % RMSE
     subplot(2, Ngroups, ig + Ngroups);
