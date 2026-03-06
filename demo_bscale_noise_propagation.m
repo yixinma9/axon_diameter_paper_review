@@ -252,19 +252,22 @@ for ig = 1:Ngroups
 end
 
 %% Step 8. Bar plot: bias & RMSE by r-bin for each group (filtered)
+r_bins_bar = [0 1; 1 2; 2 3; 3 4; 4 5];
+Nbins_bar = size(r_bins_bar, 1);
+
 figure('unit','inch','position',[0 0 14 8]);
 for ig = 1:Ngroups
     rt = results(ig).r_true_filt;
     ru = results(ig).r_fit_uncorr_filt;
     rc = results(ig).r_fit_corr_filt;
 
-    bias_unc_bins = zeros(Nbins, 1);
-    bias_cor_bins = zeros(Nbins, 1);
-    rmse_unc_bins = zeros(Nbins, 1);
-    rmse_cor_bins = zeros(Nbins, 1);
+    bias_unc_bins = zeros(Nbins_bar, 1);
+    bias_cor_bins = zeros(Nbins_bar, 1);
+    rmse_unc_bins = zeros(Nbins_bar, 1);
+    rmse_cor_bins = zeros(Nbins_bar, 1);
 
-    for ib = 1:Nbins
-        idx = rt >= r_bins(ib,1) & rt < r_bins(ib,2);
+    for ib = 1:Nbins_bar
+        idx = rt >= r_bins_bar(ib,1) & rt < r_bins_bar(ib,2);
         if sum(idx) == 0; continue; end
         err_unc = ru(idx) - rt(idx);
         err_cor = rc(idx) - rt(idx);
@@ -274,7 +277,7 @@ for ig = 1:Ngroups
         rmse_cor_bins(ib) = sqrt(mean(err_cor.^2));
     end
 
-    bin_labels = arrayfun(@(i) sprintf('%g-%g', r_bins(i,1), r_bins(i,2)), 1:Nbins, 'uni', 0);
+    bin_labels = arrayfun(@(i) sprintf('%g-%g', r_bins_bar(i,1), r_bins_bar(i,2)), 1:Nbins_bar, 'uni', 0);
 
     % Bias
     subplot(2, Ngroups, ig);
