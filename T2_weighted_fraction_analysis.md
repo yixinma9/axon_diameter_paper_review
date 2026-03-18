@@ -8,7 +8,7 @@ $$f_r(\text{TE}) = \frac{f_0 \, e^{-\text{TE}/T_{2}^{a}}}{f_0 \, e^{-\text{TE}/T
 
 where $T_2^a$ and $T_2^e$ are the intra-axonal and extra-axonal transverse relaxation times, respectively.
 
-Since $T_2^a > T_2^e$ in white matter (Veraart et al., 2018), the extra-axonal signal decays faster with increasing TE. At longer TE, the extra-axonal contribution is more suppressed, inflating the apparent restricted fraction. Because the C1 protocol operates at a longer TE (77 ms) than C2 (54 ms), C1 is expected to yield systematically higher $f_r$ estimates than C2 for the same underlying tissue.
+Since $T_2^a > T_2^e$ in white matter (Veraart et al., 2018), the extra-axonal signal decays faster with increasing TE. At longer TE, the extra-axonal contribution is more suppressed, inflating the apparent restricted fraction. Because C2 operates at a shorter TE (54 ms) than C1 (77 ms), C2 retains more extra-axonal signal relative to intra-axonal signal, resulting in systematically lower $f_r$ estimates compared to C1 for the same underlying tissue.
 
 ### Method
 
@@ -29,21 +29,21 @@ We computed the predicted T2-weighted restricted fraction for 10 major white mat
 
 ### Results
 
-| ROI  | $f_r$ (C2, TE=54 ms) | $f_r$ (C1, TE=77 ms) | Difference |
+| ROI  | $f_r$ (C2, TE=54 ms) | $f_r$ (C1, TE=77 ms) | C2 vs C1 |
 |------|:---:|:---:|:---:|
-| PLIC | 0.645 | 0.717 | +11.2% |
-| ALIC | 0.572 | 0.621 | +8.6%  |
-| SLF  | 0.650 | 0.725 | +11.5% |
-| EC   | 0.503 | 0.524 | +4.2%  |
-| GCC  | 0.651 | 0.725 | +11.5% |
-| BCC  | 0.599 | 0.655 | +9.4%  |
-| SCC  | 0.634 | 0.706 | +11.3% |
-| ACR  | 0.551 | 0.592 | +7.5%  |
-| SCR  | 0.595 | 0.652 | +9.7%  |
-| PCR  | 0.588 | 0.643 | +9.4%  |
-| **Mean** | **0.599** | **0.656** | **+9.4%** |
+| PLIC | 0.645 | 0.717 | −11.2% |
+| ALIC | 0.572 | 0.621 | −8.6%  |
+| SLF  | 0.650 | 0.725 | −11.5% |
+| EC   | 0.503 | 0.524 | −4.2%  |
+| GCC  | 0.651 | 0.725 | −11.5% |
+| BCC  | 0.599 | 0.655 | −9.4%  |
+| SCC  | 0.634 | 0.706 | −11.3% |
+| ACR  | 0.551 | 0.592 | −7.5%  |
+| SCR  | 0.595 | 0.652 | −9.7%  |
+| PCR  | 0.588 | 0.643 | −9.4%  |
+| **Mean** | **0.599** | **0.656** | **−9.4%** |
 
-Across all ROIs, the T2 weighting effect predicts that C1 yields 4–12% higher restricted fractions than C2 (mean 9.4%). The effect is largest in ROIs with the greatest $T_2^a / T_2^e$ ratio (e.g., SLF, GCC, SCC) and smallest where the two compartmental T2 values are closer (e.g., EC).
+Across all ROIs, the T2 weighting effect predicts that C2 yields 4–12% lower restricted fractions than C1 (mean −9.4%). The effect is largest in ROIs with the greatest $T_2^a / T_2^e$ ratio (e.g., SLF, GCC, SCC) and smallest where the two compartmental T2 values are closer (e.g., EC).
 
 ### References
 

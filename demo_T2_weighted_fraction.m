@@ -49,8 +49,8 @@ for k = 1:Nroi
     f_C1(k) = f0*exp(-TE_C1/T2a) / S0_C1;
 end
 
-% Percentage difference: (C1 - C2) / C2 * 100
-pct_diff = (f_C1 - f_C2) ./ f_C2 * 100;
+% Percentage difference: (C2 - C1) / C1 * 100  (negative = C2 lower)
+pct_diff = (f_C2 - f_C1) ./ f_C1 * 100;
 
 %% 2. Print table
 fprintf('%-6s  T2a  T2e   f_C2   f_C1   diff(%%)  \n', 'ROI');
@@ -78,8 +78,8 @@ exportgraphics(gcf, 'fig_T2_fr_per_ROI.pdf', 'ContentType', 'vector');
 %% 4. Figure 2: Percentage difference per ROI
 figure('unit','inch','position',[0 0 12 4]);
 bar(categorical(roi_names, roi_names), pct_diff, 'FaceColor', [0.5 0.7 0.3]);
-ylabel('(f_{C1} - f_{C2}) / f_{C2}  (%)');
-title('Predicted % difference in f_r due to T2 weighting (C1 vs C2)');
+ylabel('(f_{C2} - f_{C1}) / f_{C1}  (%)');
+title('Predicted % difference in f_r due to T2 weighting (C2 vs C1)');
 yline(0, 'k--', 'HandleVisibility', 'off');
 grid on; box on;
 exportgraphics(gcf, 'fig_T2_fr_pct_diff.pdf', 'ContentType', 'vector');
