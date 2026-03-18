@@ -156,3 +156,45 @@ xlim(lims); ylim(lims);
 text(lims(1)+1, lims(2)-2, sprintf('r = %.2f, p = %.3f', r, p), 'FontSize', 10);
 
 exportgraphics(gcf, 'fig_T2_fr_scatter_pred_vs_obs.pdf', 'ContentType', 'vector');
+
+%% 8. Figure 4: f(TE) vs original f sweep for each ROI (3x4 grid)
+fr_sweep = linspace(0.3, 0.6, 50);
+
+figure('unit','inch','position',[0 0 16 12]);
+tiledlayout(3, 4, 'TileSpacing', 'compact', 'Padding', 'compact');
+
+for k = 1:Nroi
+    nexttile;
+    T2a = T2a_all(k);
+    T2e = T2e_all(k);
+
+    for it = 1:2
+        if it == 1; TE = TE_C1; col = [0.2 0.4 0.8]; else; TE = TE_C2; col = [0.8 0.2 0.2]; end
+        fr_app = zeros(size(fr_sweep));
+        for i = 1:numel(fr_sweep)
+            f = fr_sweep(i);
+            fr_app(i) = f*exp(-TE/T2a) / (f*exp(-TE/T2a) + (1-f)*exp(-TE/T2e));
+        end
+        plot(fr_sweep, fr_app, '-', 'Color', col, 'LineWidth', 1.5); hold on;
+    end
+
+    % Identity line
+    plot([0.3 0.6], [0.3 0.6], 'k--', 'LineWidth', 0.8);
+
+    % Mark observed values
+    plot(f0_from_C1(k), f_obs_C1(k), 's', 'MarkerSize', 8, 'MarkerFaceColor', [0.2 0.4 0.8], 'MarkerEdgeColor', 'k');
+    plot(f0_from_C1(k), f_obs_C2(k), 'o', 'MarkerSize', 8, 'MarkerFaceColor', [0.8 0.2 0.2], 'MarkerEdgeColor', 'k');
+
+    xlim([0.3 0.6]); ylim([0.3 0.85]);
+    pbaspect([1 1 1]); grid on; box on;
+    title(sprintf('%s (T2a=%d, T2e=%d)', roi_names{k}, T2a, T2e), 'FontSize', 8);
+
+    if k == 1
+        legend({'C1 (TE=77)', 'C2 (TE=54)', 'Identity', 'C1 obs', 'C2 obs'}, ...
+            'FontSize', 6, 'Location', 'northwest');
+    end
+    if mod(k-1,4) == 0; ylabel('T2-weighted f_r'); end
+    if k > 8; xlabel('f_0'); end
+end
+
+exportgraphics(gcf, 'fig_T2_fr_sweep_per_ROI.pdf', 'ContentType', 'vector');
