@@ -45,46 +45,13 @@ The ROIs and their T2 values are:
 | PCR  | 0.588 | 0.643 | −9.4%  |
 | **Mean** | **0.599** | **0.656** | **−9.4%** |
 
----
+Across all ROIs, the T2 weighting effect predicts that C2 yields 4–12% lower restricted fractions than C1 (mean −9.4%). The effect is largest in ROIs with the greatest $T_2^a / T_2^e$ ratio (e.g., SLF, GCC, SCC) and smallest where the two compartmental T2 values are closer (e.g., EC).
 
-### Figure 1. Predicted T2-weighted $f_r$ per ROI (C1 vs C2)
+### Figure. T2-weighted vs original restricted fraction per ROI
 
-![Predicted T2-weighted fr per ROI](figures/fig1_bar_C1_C2.png)
+![T2-weighted vs original restricted fraction per ROI](figures/fig_T2_weighted_fraction_per_ROI.png)
 
-C1 (blue, TE = 77 ms) consistently yields higher apparent $f_r$ than C2 (red, TE = 54 ms) across all ROIs, because the longer TE suppresses more extra-axonal signal.
-
----
-
-### Figure 2. Predicted percentage difference (C2 − C1)
-
-![Percentage difference per ROI](figures/fig2_pct_diff.png)
-
-The T2 weighting effect predicts that C2 yields 4–12% lower restricted fractions than C1 (mean −9.4%). The effect is largest in ROIs with the greatest $T_2^a / T_2^e$ ratio (e.g., SLF, GCC, SCC: ratio > 2.1) and smallest where the two compartmental T2 values are closer (e.g., EC: ratio = 1.27).
-
----
-
-### Figure 3. T2-weighted vs original restricted fraction
-
-![f sweep curve](figures/fig3_f_sweep.png)
-
-Both C1 and C2 curves lie above the identity line—T2 weighting inflates the apparent restricted fraction at any $f_0$. The vertical gap between the two curves represents the systematic C1–C2 bias due to TE difference.
-
----
-
-### Figure 4. $f_r$ vs TE (30–60 ms) per ROI
-
-![fr vs TE per ROI](figures/fig4_fr_vs_TE.png)
-
-Each curve shows how the apparent restricted fraction decreases with shorter TE for a given ROI. The red dashed line marks the C2 echo time (54 ms). ROIs with higher $T_2^a / T_2^e$ ratios (e.g., PLIC, SLF, GCC) show steeper slopes, meaning they are more sensitive to TE differences between protocols.
-
----
-
-### Key findings
-
-1. **Direction consistent**: T2 weighting predicts C2 < C1 for all ROIs, matching observed in-vivo pattern.
-2. **Mean difference**: T2 model predicts a mean −9.4% difference, comparable to observed ~8–10% in-vivo.
-3. **ROI dependence**: The effect scales with the $T_2^a / T_2^e$ ratio—ROIs with greater compartmental T2 contrast show larger C1–C2 discrepancy.
-4. **Partial explanation**: T2 weighting is one contributing factor to the observed C1–C2 gap. Additional factors (SNR: 18 vs 38, b-value range, gradient strength) also contribute, particularly for tracts like CST where the in-vivo difference exceeds the T2 prediction.
+For each ROI, the blue curve (C1, TE = 77 ms) lies above the red curve (C2, TE = 54 ms)—both inflated above the identity line (dashed black). The vertical gap between curves represents the systematic C1–C2 bias due to TE difference. ROIs with larger $T_2^a / T_2^e$ ratios (e.g., PLIC: 2.62, SLF: 2.37) show wider separation than ROIs with similar compartmental T2 values (e.g., EC: 1.27).
 
 ### References
 

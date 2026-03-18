@@ -84,34 +84,48 @@ yline(0, 'k--', 'HandleVisibility', 'off');
 grid on; box on;
 exportgraphics(gcf, 'fig_T2_fr_pct_diff.pdf', 'ContentType', 'vector');
 
-%% 5. Figure 3: f(TE) vs original f sweep (for mean T2 values)
+%% 5. Figure 3: f(TE) vs original f sweep — per ROI (3x4 grid)
 fr_sweep = linspace(0.3, 0.6, 50);
-T2a_mean = mean(T2a_all);
-T2e_mean = mean(T2e_all);
 
-figure('unit','inch','position',[0 0 6 5]);
-TEs = [TE_C2, TE_C1];
-markers = {'-o', '-s'};
-labels = {sprintf('f_r (C2: TE=%dms)', TE_C2), sprintf('f_r (C1: TE=%dms)', TE_C1)};
+figure('unit','inch','position',[0 0 16 12]);
+tiledlayout(3, 4, 'TileSpacing', 'compact', 'Padding', 'compact');
 
-for it = 1:2
-    TE = TEs(it);
-    fr_app = zeros(size(fr_sweep));
-    for i = 1:numel(fr_sweep)
-        fr = fr_sweep(i);
-        fe = 1 - fr;
-        S0 = fr*exp(-TE/T2a_mean) + fe*exp(-TE/T2e_mean);
-        fr_app(i) = fr*exp(-TE/T2a_mean) / S0;
+for k = 1:Nroi
+    nexttile;
+    T2a = T2a_all(k);
+    T2e = T2e_all(k);
+
+    for it = 1:2
+        if it == 1; TE = TE_C1; col = [0.2 0.4 0.8]; else; TE = TE_C2; col = [0.8 0.2 0.2]; end
+        fr_app = zeros(size(fr_sweep));
+        for i = 1:numel(fr_sweep)
+            f = fr_sweep(i);
+            fr_app(i) = f*exp(-TE/T2a) / (f*exp(-TE/T2a) + (1-f)*exp(-TE/T2e));
+        end
+        plot(fr_sweep, fr_app, '-', 'Color', col, 'LineWidth', 1.5); hold on;
     end
-    plot(fr_sweep, fr_app, markers{it}, 'MarkerSize', 5, 'LineWidth', 1.5); hold on;
+
+    plot([0.3 0.6], [0.3 0.6], 'k--', 'LineWidth', 0.8);
+
+    xlim([0.3 0.6]); ylim([0.3 0.85]);
+    pbaspect([1 1 1]); grid on; box on;
+    title(sprintf('%s (T2a=%d, T2e=%d)', roi_names{k}, T2a, T2e), 'FontSize', 8);
+
+    if k == 1
+        legend({'C1 (TE=77)', 'C2 (TE=54)', 'Identity'}, ...
+            'FontSize', 6, 'Location', 'northwest');
+    end
+    if mod(k-1,4) == 0; ylabel('T2-weighted f_r'); end
+    if k > 7; xlabel('f_0'); end
 end
-xlabel('Original Restricted Fraction');
-ylabel('T2 decay weighted Restricted Fraction');
-title({'T2 decay weighted and original restricted fraction', ...
-       sprintf('mean T2a=%.0fms, T2e=%.0fms', T2a_mean, T2e_mean)});
-legend(labels, 'Location', 'northwest');
-pbaspect([1 1 1]); box on; grid on;
-exportgraphics(gcf, 'fig_T2_weighted_fraction.pdf', 'ContentType', 'vector');
+
+% Use last tile (3x4=12, only 10 ROIs) for annotation
+nexttile;
+axis off;
+text(0.1, 0.5, sprintf('f_0 = %.2f\nfCSF = 0\n2-compartment', f0), ...
+    'FontSize', 10, 'VerticalAlignment', 'middle');
+
+exportgraphics(gcf, 'fig_T2_weighted_fraction_per_ROI.pdf', 'ContentType', 'vector');
 
 %% 6. Figure 4: f_r vs TE (30–60 ms) per ROI
 TE_sweep = linspace(30, 60, 100);
