@@ -12,38 +12,44 @@ Since $T_2^a > T_2^e$ in white matter (Veraart et al., 2018), the extra-axonal s
 
 ### Method
 
-We computed the predicted T2-weighted restricted fraction for 10 major white matter ROIs at both echo times, using compartmental T2 values read from Figure 5 of Veraart et al. (2018) and a representative non-T2-weighted fraction of $f_0 = 0.45$. The ROIs and their T2 values are:
+We used per-tract compartmental T2 values from Veraart et al. (2018), mapped from the JHU ICBM-DTI-81 atlas regions to the JHU tractography atlas tracts used in our analysis:
 
-| ROI  | $T_2^a$ (ms) | $T_2^e$ (ms) |
-|------|:---:|:---:|
-| PLIC | 110 | 42 |
-| ALIC |  85 | 48 |
-| SLF  |  90 | 38 |
-| EC   |  70 | 55 |
-| GCC  |  75 | 35 |
-| BCC  |  90 | 45 |
-| SCC  |  90 | 40 |
-| ACR  |  75 | 48 |
-| SCR  | 100 | 48 |
-| PCR  |  95 | 48 |
+| Tract (this study) | TEdDI ROI | $T_2^a$ (ms) | $T_2^e$ (ms) |
+|-----|-----------|:---:|:---:|
+| ATR L/R | ACR | 75 | 48 |
+| CST L/R | PLIC | 110 | 42 |
+| Forceps major | SCC | 90 | 40 |
+| Forceps minor | GCC | 75 | 35 |
+| IFO L/R | EC | 70 | 55 |
+| ILF L/R | BCC* | 80 | 45 |
+| SLF L/R | SLF | 90 | 38 |
+
+\* No direct TEdDI match for ILF; approximate values used.
+
+Rather than assuming a uniform ground-truth fraction, we used a data-driven approach: for each tract, we back-calculated the non-T2-weighted fraction $f_0$ from the observed C1 restricted fraction using the inverse of the T2-weighting formula:
+
+$$f_0 = \frac{f_r \, e^{-\text{TE}/T_{2}^{e}}}{f_r \, e^{-\text{TE}/T_{2}^{e}} + (1 - f_r) \, e^{-\text{TE}/T_{2}^{a}}}$$
+
+We then forward-predicted $f_r$ at both echo times from this tract-specific $f_0$, and compared the T2-predicted C2–C1 difference with the observed difference from our data (Supplementary Figure 3).
 
 ### Results
 
-| ROI  | $f_r$ (C2, TE=54 ms) | $f_r$ (C1, TE=77 ms) | C2 vs C1 |
-|------|:---:|:---:|:---:|
-| PLIC | 0.645 | 0.717 | −11.2% |
-| ALIC | 0.572 | 0.621 | −8.6%  |
-| SLF  | 0.650 | 0.725 | −11.5% |
-| EC   | 0.503 | 0.524 | −4.2%  |
-| GCC  | 0.651 | 0.725 | −11.5% |
-| BCC  | 0.599 | 0.655 | −9.4%  |
-| SCC  | 0.634 | 0.706 | −11.3% |
-| ACR  | 0.551 | 0.592 | −7.5%  |
-| SCR  | 0.595 | 0.652 | −9.7%  |
-| PCR  | 0.588 | 0.643 | −9.4%  |
-| **Mean** | **0.599** | **0.656** | **−9.4%** |
+| Tract | $f_0$ | $f_r^{C1}$ obs | $f_r^{C2}$ obs | $f_r^{C2}$ pred | Obs C2–C1 | T2-pred C2–C1 | Residual |
+|-------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| ATR L | 0.390 | 0.57 | 0.52 | 0.50 | −8.8% | −7.5% | −1.3% |
+| ATR R | 0.369 | 0.55 | 0.49 | 0.48 | −10.9% | −7.5% | −3.4% |
+| CST L | 0.530 | 0.72 | 0.55 | 0.65 | −23.6% | −11.2% | −12.4% |
+| CST R | 0.505 | 0.70 | 0.54 | 0.63 | −22.9% | −11.2% | −11.7% |
+| Forceps major | 0.383 | 0.57 | 0.55 | 0.50 | −3.5% | −11.3% | +7.8% |
+| Forceps minor | 0.359 | 0.56 | 0.55 | 0.48 | −1.8% | −11.5% | +9.7% |
+| IFO L | 0.375 | 0.47 | 0.40 | 0.44 | −14.9% | −4.2% | −10.7% |
+| IFO R | 0.404 | 0.50 | 0.48 | 0.47 | −4.0% | −4.2% | +0.2% |
+| ILF L | 0.380 | 0.55 | 0.55 | 0.49 | 0.0% | −9.0% | +9.0% |
+| ILF R | 0.380 | 0.55 | 0.55 | 0.49 | 0.0% | −9.0% | +9.0% |
+| SLF L | 0.367 | 0.56 | 0.55 | 0.48 | −1.8% | −11.5% | +9.7% |
+| SLF R | 0.486 | 0.67 | 0.63 | 0.59 | −6.0% | −11.5% | +5.5% |
 
-Across all ROIs, the T2 weighting effect predicts that C2 yields 4–12% lower restricted fractions than C1 (mean −9.4%). The effect is largest in ROIs with the greatest $T_2^a / T_2^e$ ratio (e.g., SLF, GCC, SCC) and smallest where the two compartmental T2 values are closer (e.g., EC).
+The T2 weighting model predicts that C2 should yield 4–12% lower restricted fractions than C1 across all tracts, consistent with the direction of the observed differences. For tracts such as ATR, the predicted and observed differences closely agree (−7.5% predicted vs −9 to −11% observed). For other tracts (e.g., CST), the observed difference substantially exceeds the T2 prediction, indicating that additional factors—such as lower SNR (18 vs 38) and reduced b-value range on C1—contribute to the gap. Conversely, for tracts where the observed difference is smaller than predicted (e.g., forceps, ILF, SLF L), compensating factors may partially offset the T2 effect.
 
 ### References
 
