@@ -4,15 +4,15 @@
 
 The restricted volume fraction ($f_r$) estimated by AxCaliber-SMT is not the true (non-T2-weighted) intra-axonal water fraction $f_0$, but rather a T2-decay-weighted apparent fraction that depends on echo time (TE). Because intra-axonal and extra-axonal compartments have different T2 relaxation times, the apparent fraction shifts with TE according to (Veraart et al., 2018):
 
-$$f_r(\text{TE}) = \frac{f_0 \, e^{-\text{TE}/T_{2}^{a}}}{f_0 \, e^{-\text{TE}/T_{2}^{a}} + (1 - f_0) \, e^{-\text{TE}/T_{2}^{e}}}$$
+$$f_r(\text{TE}) = \frac{f_0 \, e^{-\text{TE}/T_{2}^{a}}}{f_0 \, e^{-\text{TE}/T_{2}^{a}} + f_e \, e^{-\text{TE}/T_{2}^{e}} + f_{\text{csf}} \, e^{-\text{TE}/T_{2}^{\text{csf}}}}$$
 
-where $T_2^a$ and $T_2^e$ are the intra-axonal and extra-axonal transverse relaxation times, respectively.
+where $T_2^a$ and $T_2^e$ are the intra-axonal and extra-axonal transverse relaxation times, $f_e = 1 - f_0 - f_{\text{csf}}$ is the extra-axonal fraction, and $f_{\text{csf}}$ is the isotropic (CSF-like) compartment fraction with $T_2^{\text{csf}} \approx 2000$ ms at 3T.
 
 Since $T_2^a > T_2^e$ in white matter (Veraart et al., 2018), the extra-axonal signal decays faster with increasing TE. At longer TE, the extra-axonal contribution is more suppressed, inflating the apparent restricted fraction. Because C2 operates at a shorter TE (54 ms) than C1 (77 ms), C2 retains more extra-axonal signal relative to intra-axonal signal, resulting in systematically lower $f_r$ estimates compared to C1 for the same underlying tissue.
 
 ### Method
 
-We computed the predicted T2-weighted restricted fraction for 10 major white matter ROIs at both echo times, using a two-compartment model ($f_{\text{csf}} = 0$) with compartmental T2 values read from Figure 5 of Veraart et al. (2018) and a representative non-T2-weighted fraction of $f_0 = 0.45$. The two-compartment assumption follows Veraart et al. (2018) and Kaden et al. (2016); CSF has $T_2 \approx 2000$ ms at 3T, producing negligible signal change between TE = 54 ms and 77 ms (~1% difference).
+We computed the predicted T2-weighted restricted fraction for 10 major white matter ROIs at both echo times, using compartmental T2 values read from Figure 5 of Veraart et al. (2018), a representative non-T2-weighted fraction of $f_0 = 0.45$, and an isotropic compartment fraction $f_{\text{csf}} = 0.05$ with $T_2^{\text{csf}} = 2000$ ms (Veraart et al., 2018; Kaden et al., 2016).
 
 The ROIs and their T2 values are:
 
@@ -33,19 +33,19 @@ The ROIs and their T2 values are:
 
 | ROI  | $f_r$ (C2, TE=54 ms) | $f_r$ (C1, TE=77 ms) | C2 vs C1 |
 |------|:---:|:---:|:---:|
-| PLIC | 0.645 | 0.717 | −11.2% |
-| ALIC | 0.572 | 0.621 | −8.6%  |
-| SLF  | 0.650 | 0.725 | −11.5% |
-| EC   | 0.503 | 0.524 | −4.2%  |
-| GCC  | 0.651 | 0.725 | −11.5% |
-| BCC  | 0.599 | 0.655 | −9.4%  |
-| SCC  | 0.634 | 0.706 | −11.3% |
-| ACR  | 0.551 | 0.592 | −7.5%  |
-| SCR  | 0.595 | 0.652 | −9.7%  |
-| PCR  | 0.588 | 0.643 | −9.4%  |
-| **Mean** | **0.599** | **0.656** | **−9.4%** |
+| PLIC | 0.596 | 0.636 | −6.3% |
+| ALIC | 0.530 | 0.550 | −3.6% |
+| SLF  | 0.593 | 0.627 | −5.3% |
+| EC   | 0.469 | 0.466 | +0.5% |
+| GCC  | 0.585 | 0.609 | −4.0% |
+| BCC  | 0.553 | 0.580 | −4.6% |
+| SCC  | 0.581 | 0.612 | −5.2% |
+| ACR  | 0.509 | 0.520 | −2.1% |
+| SCR  | 0.554 | 0.584 | −5.1% |
+| PCR  | 0.547 | 0.574 | −4.6% |
+| **Mean** | **0.552** | **0.576** | **−4.0%** |
 
-Across all ROIs, the T2 weighting effect predicts that C2 yields 4–12% lower restricted fractions than C1 (mean −9.4%). The effect is largest in ROIs with the greatest $T_2^a / T_2^e$ ratio (e.g., SLF, GCC, SCC) and smallest where the two compartmental T2 values are closer (e.g., EC).
+Across all ROIs, the T2 weighting effect predicts that C2 yields 2–6% lower restricted fractions than C1 (mean −4.0%). The effect is largest in ROIs with the greatest $T_2^a / T_2^e$ ratio (e.g., PLIC, SLF, SCC) and smallest where the two compartmental T2 values are closer (e.g., EC).
 
 ### Figure. T2-weighted vs original restricted fraction per ROI
 
