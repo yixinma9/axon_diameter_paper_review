@@ -2,12 +2,12 @@ clear; close all;
 
 %% T2 decay weighted vs original restricted fraction
 % Reference: Veraart, Novikov, Fieremans (2017) — TEdDI, Neuroimage
-% f(TE) = f0*exp(-TE/T2a) / [f0*exp(-TE/T2a) + (1-f0-fcsf)*exp(-TE/T2e) + fcsf*exp(-TE/T2csf)]
+% 2-compartment model (no CSF):
+% f(TE) = f0*exp(-TE/T2a) / [f0*exp(-TE/T2a) + (1-f0)*exp(-TE/T2e)]
 
 % Protocol TEs
 TE_C2 = 54;   % ms
 TE_C1 = 77;   % ms
-T2csf = 2000; % ms
 
 % Per-ROI T2 values from TEdDI paper Figure 5 (Veraart et al. 2017)
 %           ROI name    T2a(ms)  T2e(ms)
@@ -28,25 +28,24 @@ T2a_all   = cell2mat(roi_data(:,2));
 T2e_all   = cell2mat(roi_data(:,3));
 Nroi = numel(roi_names);
 
-% Assumed ground truth fractions (same for all ROIs for simplicity)
-f0   = 0.45;
-fcsf = 0.1;
+% Assumed ground truth fraction
+f0 = 0.45;
 
-%% 1. Compute T2-weighted f for each ROI at both TEs
+%% 1. Compute T2-weighted f for each ROI at both TEs (2-compartment, no CSF)
 f_C2 = zeros(Nroi, 1);
 f_C1 = zeros(Nroi, 1);
 
 for k = 1:Nroi
     T2a = T2a_all(k);
     T2e = T2e_all(k);
-    fe  = 1 - f0 - fcsf;
+    fe  = 1 - f0;
 
     % C2
-    S0_C2 = f0*exp(-TE_C2/T2a) + fe*exp(-TE_C2/T2e) + fcsf*exp(-TE_C2/T2csf);
+    S0_C2 = f0*exp(-TE_C2/T2a) + fe*exp(-TE_C2/T2e);
     f_C2(k) = f0*exp(-TE_C2/T2a) / S0_C2;
 
     % C1
-    S0_C1 = f0*exp(-TE_C1/T2a) + fe*exp(-TE_C1/T2e) + fcsf*exp(-TE_C1/T2csf);
+    S0_C1 = f0*exp(-TE_C1/T2a) + fe*exp(-TE_C1/T2e);
     f_C1(k) = f0*exp(-TE_C1/T2a) / S0_C1;
 end
 
@@ -100,8 +99,8 @@ for it = 1:2
     fr_app = zeros(size(fr_sweep));
     for i = 1:numel(fr_sweep)
         fr = fr_sweep(i);
-        fe = 1 - fr - fcsf;
-        S0 = fr*exp(-TE/T2a_mean) + fe*exp(-TE/T2e_mean) + fcsf*exp(-TE/T2csf);
+        fe = 1 - fr;
+        S0 = fr*exp(-TE/T2a_mean) + fe*exp(-TE/T2e_mean);
         fr_app(i) = fr*exp(-TE/T2a_mean) / S0;
     end
     plot(fr_sweep, fr_app, markers{it}, 'MarkerSize', 5, 'LineWidth', 1.5); hold on;
