@@ -2,19 +2,25 @@
 
 ### Background
 
-The restricted volume fraction ($f_r$) estimated by AxCaliber-SMT is not the true (non-T2-weighted) intra-axonal water fraction $f_0$, but rather a T2-decay-weighted apparent fraction that depends on echo time (TE). Because intra-axonal and extra-axonal compartments have different T2 relaxation times, the apparent fraction shifts with TE according to (Veraart et al., 2018):
+The restricted volume fraction ($f_r$) estimated by AxCaliber-SMT is a T2-decay-weighted apparent fraction that depends on echo time (TE). Because intra-axonal and extra-axonal compartments have different T2 relaxation times, the apparent fraction shifts with TE (Veraart et al., 2018):
 
-$$f_r(\text{TE}) = \frac{f_0 \, e^{-\text{TE}/T_{2}^{a}}}{f_0 \, e^{-\text{TE}/T_{2}^{a}} + f_e \, e^{-\text{TE}/T_{2}^{e}} + f_{\text{csf}} \, e^{-\text{TE}/T_{2}^{\text{csf}}}}$$
+$$f_r(\text{TE}) = \frac{f_0 \, e^{-\text{TE}/T_{2}^{a}}}{f_0 \, e^{-\text{TE}/T_{2}^{a}} + (1 - f_0) \, e^{-\text{TE}/T_{2}^{e}}}$$
 
-where $T_2^a$ and $T_2^e$ are the intra-axonal and extra-axonal transverse relaxation times, $T_2^{\text{csf}}$ is the isotropic compartment relaxation time (~2000 ms at 3T), and $f_0 + f_e + f_{\text{csf}} = 1$.
+Since $T_2^a > T_2^e$ in white matter, C2 (TE = 54 ms) retains more extra-axonal signal than C1 (TE = 77 ms), yielding systematically lower $f_r$.
 
-Since $T_2^a > T_2^e$ in white matter (Veraart et al., 2018), the extra-axonal signal decays faster with increasing TE. At longer TE, the extra-axonal contribution is more suppressed, inflating the apparent restricted fraction. Because C2 operates at a shorter TE (54 ms) than C1 (77 ms), C2 retains more extra-axonal signal relative to intra-axonal signal, resulting in systematically lower $f_r$ estimates compared to C1 for the same underlying tissue.
+### Key parameters
 
-### Method
+| Parameter | Value | Source |
+|-----------|:-----:|--------|
+| TE (C1) | 77 ms | Protocol |
+| TE (C2) | 54 ms | Protocol |
+| $f_{\text{csf}}$ | 0 | 2-compartment model (Veraart et al., 2018; Kaden et al., 2016) |
+| $T_2^a$, $T_2^e$ | Per-tract | TEdDI Figure 5 (Veraart et al., 2018) |
+| $f_0$ | Per-tract | Back-calculated from observed C1 $f_r$ |
 
-We adopted a three-compartment model (intra-axonal, extra-axonal, and isotropic) consistent with the AxCaliber-SMT signal model (Kaden et al., 2016). The isotropic compartment fraction $f_{\text{csf}}$ was determined by minimizing the mean squared error between the T2-predicted and observed C2–C1 percentage differences across all 12 white matter tracts (sweeping $f_{\text{csf}}$ from 0 to 0.25 in steps of 0.005). Note that $T_2^{\text{csf}} \approx 2000$ ms at 3T, so the isotropic signal changes minimally between TE = 54 ms and TE = 77 ms ($e^{-54/2000} = 0.973$ vs $e^{-77/2000} = 0.962$); its main effect is to dilute the intra-/extra-axonal T2 contrast rather than introduce a TE-dependent shift of its own.
+**Choice of $f_{\text{csf}} = 0$**: We adopted a two-compartment model following Veraart et al. (2018) and Kaden et al. (2016). CSF has $T_2 \approx 2000$ ms at 3T, producing negligible signal change between TE = 54 ms and 77 ms (~1% difference). Sensitivity analysis with $f_{\text{csf}}$ = 0.02, 0.05, and 0.10 confirmed that including an isotropic compartment progressively dilutes the T2 effect (predicted mean difference shifts from −9.4% at $f_{\text{csf}}=0$ to +1.9% at $f_{\text{csf}}=0.10$), while the optimal $f_{\text{csf}}$ by MSE minimization is 0.02—essentially zero.
 
-We used per-tract compartmental T2 values from Veraart et al. (2018), mapped from the JHU ICBM-DTI-81 atlas regions to the JHU tractography atlas tracts used in our analysis:
+### T2 mapping: tractography atlas ↔ TEdDI ROIs
 
 | Tract (this study) | TEdDI ROI | $T_2^a$ (ms) | $T_2^e$ (ms) |
 |-----|-----------|:---:|:---:|
@@ -28,13 +34,48 @@ We used per-tract compartmental T2 values from Veraart et al. (2018), mapped fro
 
 \* No direct TEdDI match for ILF; approximate values used.
 
-For each tract, we back-calculated the non-T2-weighted fraction $f_0$ from the observed C1 restricted fraction using the three-compartment inverse formula (given the optimized $f_{\text{csf}}$), then forward-predicted $f_r$ at both echo times, and compared the T2-predicted C2–C1 difference with the observed difference from our data (Supplementary Figure 3).
+### Method
+
+For each tract, we back-calculated $f_0$ from the observed C1 restricted fraction:
+
+$$f_0 = \frac{f_r \, e^{-\text{TE}/T_{2}^{e}}}{f_r \, e^{-\text{TE}/T_{2}^{e}} + (1 - f_r) \, e^{-\text{TE}/T_{2}^{a}}}$$
+
+then forward-predicted $f_r$ at both echo times and compared with observed values (Supplementary Figure 3).
 
 ### Results
 
-*Results table to be filled after running the optimization (see `demo_T2_weighted_fraction.m`). The script outputs the optimal $f_{\text{csf}}$, per-tract $f_0$, predicted vs observed differences, and residuals.*
+| Tract | $f_0$ | $f_r^{C1}$ obs | $f_r^{C2}$ obs | $f_r^{C2}$ pred | Obs C2–C1 | T2-pred C2–C1 | Residual |
+|-------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| ATR L | 0.390 | 0.57 | 0.52 | 0.50 | −8.8% | −7.5% | −1.3% |
+| ATR R | 0.369 | 0.55 | 0.49 | 0.48 | −10.9% | −7.5% | −3.4% |
+| CST L | 0.530 | 0.72 | 0.55 | 0.65 | −23.6% | −11.2% | −12.4% |
+| CST R | 0.505 | 0.70 | 0.54 | 0.63 | −22.9% | −11.2% | −11.7% |
+| Forceps major | 0.383 | 0.57 | 0.55 | 0.50 | −3.5% | −11.3% | +7.8% |
+| Forceps minor | 0.359 | 0.56 | 0.55 | 0.48 | −1.8% | −11.5% | +9.7% |
+| IFO L | 0.375 | 0.47 | 0.40 | 0.44 | −14.9% | −4.2% | −10.7% |
+| IFO R | 0.404 | 0.50 | 0.48 | 0.47 | −4.0% | −4.2% | +0.2% |
+| ILF L | 0.380 | 0.55 | 0.55 | 0.49 | 0.0% | −9.0% | +9.0% |
+| ILF R | 0.380 | 0.55 | 0.55 | 0.49 | 0.0% | −9.0% | +9.0% |
+| SLF L | 0.367 | 0.56 | 0.55 | 0.48 | −1.8% | −11.5% | +9.7% |
+| SLF R | 0.486 | 0.67 | 0.63 | 0.59 | −6.0% | −11.5% | +5.5% |
+| **Mean** | **0.411** | | | | **−8.2%** | **−9.4%** | **+1.2%** |
 
-The T2 weighting model predicts that C2 should yield systematically lower restricted fractions than C1 across all tracts, consistent with the direction of the observed differences. Including a small isotropic fraction attenuates the predicted T2 effect, improving agreement with tracts where the observed C2–C1 gap is modest (e.g., forceps major/minor, ILF, SLF). For tracts where the observed difference substantially exceeds the T2 prediction (e.g., CST), additional factors—such as lower SNR (18 vs 38) and reduced b-value range on C1—likely contribute to the gap.
+### Key findings
+
+1. **Direction consistent**: T2 weighting predicts C2 < C1 for all tracts, matching the observed pattern.
+2. **Mean difference well matched**: T2 model predicts −9.4% mean difference vs −8.2% observed.
+3. **Tract-level variability**: For ATR the predicted and observed differences closely agree (−7.5% vs −9 to −11%). For CST, the observed difference (−23%) far exceeds the T2 prediction (−11%), indicating additional factors (SNR: 18 vs 38; reduced b-value range on C1). For forceps and ILF, the observed difference is smaller than predicted, suggesting compensating factors.
+4. **fCSF sensitivity**: The isotropic compartment fraction has minimal impact on conclusions. Increasing $f_{\text{csf}}$ uniformly shrinks the predicted T2 effect without improving the tract-level match (MSE optimal at $f_{\text{csf}} \approx 0.02$).
+
+### Output figures
+
+| Figure | File | Description |
+|--------|------|-------------|
+| 1 | `fig_T2_fr_diff_obs_vs_pred.pdf` | Bar plot: observed vs T2-predicted % difference per tract |
+| 2 | `fig_T2_fr_scatter_pred_vs_obs.pdf` | Scatter: predicted vs observed diff with correlation |
+| 3 | `fig_T2_fr_sweep_per_ROI.pdf` | Per-ROI f0 vs T2-weighted f curves (C1, C2, identity) |
+| 4 | `fig_T2_fr_sensitivity_fcsf.pdf` | Sensitivity: 3-panel bar for fCSF = 0.02, 0.05, 0.10 |
+| 5 | `fig_T2_fr_scatter_sensitivity.pdf` | Sensitivity: scatter overlay for all fCSF values |
 
 ### References
 

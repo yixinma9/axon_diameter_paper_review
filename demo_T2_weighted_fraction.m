@@ -1,17 +1,17 @@
 clear; close all;
 
-%% T2 decay weighted vs original restricted fraction (data-driven, 3-compartment)
+%% T2 decay weighted vs original restricted fraction (data-driven)
 % Reference: Veraart, Novikov, Fieremans (2018) — TEdDI, NeuroImage
-% 3-compartment model:
-%   f_r(TE) = f0*exp(-TE/T2a) / [f0*exp(-TE/T2a) + fe*exp(-TE/T2e) + fcsf*exp(-TE/T2csf)]
-%   where fe = 1 - f0 - fcsf
+%
+% Primary analysis: 2-compartment model (fCSF = 0)
+%   f_r(TE) = f0*exp(-TE/T2a) / [f0*exp(-TE/T2a) + (1-f0)*exp(-TE/T2e)]
+%
+% Sensitivity analysis: 3-compartment with fCSF = 0.02, 0.05, 0.10
 
 % Protocol TEs
 TE_C2 = 54;   % ms
 TE_C1 = 77;   % ms
-
-% CSF T2
-T2csf = 2000;  % ms (at 3T)
+T2csf = 2000; % ms (at 3T, used only in sensitivity analysis)
 
 %% 1. Per-tract data: T2 values (mapped from TEdDI ROIs) + observed f_r
 % T2 values from TEdDI paper Figure 5 (Veraart et al. 2018)
@@ -48,66 +48,91 @@ f_obs_C1   = cell2mat(roi_data(:,4));
 f_obs_C2   = cell2mat(roi_data(:,5));
 Nroi       = numel(roi_names);
 
-% Observed % difference
+% Observed % difference (C2 - C1, negative = C2 lower)
 obs_diff = (f_obs_C2 - f_obs_C1) ./ f_obs_C1 * 100;
 
-%% 2. Helper: compute predicted diff for a given fCSF
-compute_pred = @(fcsf_val) compute_pred_diff(fcsf_val, f_obs_C1, T2a_all, T2e_all, ...
-    TE_C1, TE_C2, T2csf, Nroi);
+%% ===================================================================
+%%  PRIMARY ANALYSIS: 2-compartment (fCSF = 0)
+%% ===================================================================
 
-%% 3. Three fCSF values to compare
-fcsf_values = [0.02, 0.05, 0.10];
-colors = {[0.2 0.6 0.3], [0.8 0.5 0.2], [0.6 0.2 0.6]};
-
-%% 4. Figure 1: Observed vs T2-predicted % difference — 3 panels
-figure('unit','inch','position',[0 0 18 5]);
-tiledlayout(1, 3, 'TileSpacing', 'compact', 'Padding', 'compact');
-
-for ip = 1:3
-    fcsf = fcsf_values(ip);
-    [pred_diff, f0_all, f_pred_C2] = compute_pred(fcsf);
-
-    nexttile;
-    bar_data = [obs_diff, pred_diff];
-    b = bar(categorical(roi_names, roi_names), bar_data);
-    b(1).FaceColor = [0.3 0.3 0.3];
-    b(2).FaceColor = colors{ip};
-    ylabel('(f_{C2} - f_{C1}) / f_{C1}  (%)');
-    title(sprintf('f_{CSF} = %.2f', fcsf));
-    legend({'Observed', 'T2-predicted'}, 'Location', 'southwest');
-    yline(0, 'k--', 'HandleVisibility', 'off');
-    grid on; box on;
-    set(gca, 'XTickLabelRotation', 45);
-    ylim([min(obs_diff)-5, max([obs_diff; pred_diff])+5]);
+%% 2. Back-calculate f0 from observed C1 f_r
+% Inverse: f0 = f*exp(-TE/T2e) / [f*exp(-TE/T2e) + (1-f)*exp(-TE/T2a)]
+f0_from_C1 = zeros(Nroi, 1);
+for k = 1:Nroi
+    f  = f_obs_C1(k);
+    ea = exp(-TE_C1 / T2a_all(k));
+    ee = exp(-TE_C1 / T2e_all(k));
+    f0_from_C1(k) = f * ee / (f * ee + (1-f) * ea);
 end
 
-exportgraphics(gcf, 'fig_T2_fr_diff_3panels.pdf', 'ContentType', 'vector');
+%% 3. Forward predict f_r at both TEs
+f_pred_C1 = zeros(Nroi, 1);
+f_pred_C2 = zeros(Nroi, 1);
+for k = 1:Nroi
+    f0  = f0_from_C1(k);
+    ea1 = exp(-TE_C1 / T2a_all(k));
+    ee1 = exp(-TE_C1 / T2e_all(k));
+    f_pred_C1(k) = f0*ea1 / (f0*ea1 + (1-f0)*ee1);
 
-%% 5. Figure 2: Scatter — observed vs predicted for all 3 fCSF values (overlay)
-figure('unit','inch','position',[0 0 7 6]);
+    ea2 = exp(-TE_C2 / T2a_all(k));
+    ee2 = exp(-TE_C2 / T2e_all(k));
+    f_pred_C2(k) = f0*ea2 / (f0*ea2 + (1-f0)*ee2);
+end
+
+pred_diff   = (f_pred_C2 - f_pred_C1) ./ f_pred_C1 * 100;
+unexplained = obs_diff - pred_diff;
+
+%% 4. Print summary table
+fprintf('=== Primary analysis: fCSF = 0 (2-compartment) ===\n');
+fprintf('%-16s  f0     fC1obs  fC2obs  fC2pred  obs%%    pred%%   resid%%\n', 'Tract');
+fprintf('%-16s  -----  ------  ------  -------  ------  ------  ------\n', '');
+for k = 1:Nroi
+    fprintf('%-16s  %.3f  %.3f   %.3f   %.3f    %+.1f%%  %+.1f%%  %+.1f%%\n', ...
+        roi_names{k}, f0_from_C1(k), f_obs_C1(k), f_obs_C2(k), ...
+        f_pred_C2(k), obs_diff(k), pred_diff(k), unexplained(k));
+end
+fprintf('%-16s  %.3f                           %+.1f%%  %+.1f%%  %+.1f%%\n', ...
+    'Mean', mean(f0_from_C1), mean(obs_diff), mean(pred_diff), mean(unexplained));
+
+%% 5. Figure 1: Observed vs T2-predicted % difference (primary)
+figure('unit','inch','position',[0 0 12 5]);
+bar_data_diff = [obs_diff, pred_diff];
+b3 = bar(categorical(roi_names, roi_names), bar_data_diff);
+b3(1).FaceColor = [0.3 0.3 0.3];
+b3(2).FaceColor = [0.8 0.5 0.2];
+ylabel('(f_{C2} - f_{C1}) / f_{C1}  (%)');
+title('C2 vs C1 restricted fraction difference: observed vs T2-predicted (f_{CSF} = 0)');
+legend({'Observed', 'T2-predicted'}, 'Location', 'southwest');
+yline(0, 'k--', 'HandleVisibility', 'off');
+grid on; box on;
+set(gca, 'XTickLabelRotation', 45);
+
+exportgraphics(gcf, 'fig_T2_fr_diff_obs_vs_pred.pdf', 'ContentType', 'vector');
+
+%% 6. Figure 2: Scatter — observed diff vs predicted diff (primary)
+figure('unit','inch','position',[0 0 6 5]);
+scatter(pred_diff, obs_diff, 80, 'filled', 'MarkerFaceColor', [0.2 0.5 0.7]);
 hold on;
 
-for ip = 1:3
-    fcsf = fcsf_values(ip);
-    pred_diff = compute_pred(fcsf);
-    scatter(pred_diff, obs_diff, 60, 'filled', ...
-        'MarkerFaceColor', colors{ip}, 'MarkerFaceAlpha', 0.7);
+lims = [min([pred_diff; obs_diff])-2, max([pred_diff; obs_diff])+2];
+plot(lims, lims, 'k--', 'LineWidth', 1.5);
+
+for k = 1:Nroi
+    text(pred_diff(k)+0.3, obs_diff(k)+0.3, roi_names{k}, 'FontSize', 7);
 end
 
-lims = [min(obs_diff)-3, max(obs_diff)+3];
-plot(lims, lims, 'k--', 'LineWidth', 1.5);
 xlabel('T2-predicted difference (%)');
 ylabel('Observed difference (%)');
-title('Predicted vs observed C2–C1 difference');
-legend(arrayfun(@(x) sprintf('f_{CSF} = %.2f', x), fcsf_values, 'UniformOutput', false), ...
-    'Location', 'northwest');
+title('T2 weighting explains partial C2–C1 gap (f_{CSF} = 0)');
 pbaspect([1 1 1]); grid on; box on;
 xlim(lims); ylim(lims);
 
-exportgraphics(gcf, 'fig_T2_fr_scatter_3fcsf.pdf', 'ContentType', 'vector');
+[r, p] = corr(pred_diff, obs_diff);
+text(lims(1)+1, lims(2)-2, sprintf('r = %.2f, p = %.3f', r, p), 'FontSize', 10);
 
-%% 6. Figure 3: f(TE) vs f0 sweep per ROI — using fCSF = 0.05 (middle value)
-fcsf_plot = 0.05;
+exportgraphics(gcf, 'fig_T2_fr_scatter_pred_vs_obs.pdf', 'ContentType', 'vector');
+
+%% 7. Figure 3: f(TE) vs f0 sweep per ROI (3x4 grid, 2-compartment)
 fr_sweep = linspace(0.3, 0.6, 50);
 
 figure('unit','inch','position',[0 0 16 12]);
@@ -123,14 +148,11 @@ for k = 1:Nroi
         fr_app = zeros(size(fr_sweep));
         for i = 1:numel(fr_sweep)
             f = fr_sweep(i);
-            fe = 1 - f - fcsf_plot;
-            ea = exp(-TE/T2a); ee = exp(-TE/T2e); ec = exp(-TE/T2csf);
-            fr_app(i) = f*ea / (f*ea + fe*ee + fcsf_plot*ec);
+            fr_app(i) = f*exp(-TE/T2a) / (f*exp(-TE/T2a) + (1-f)*exp(-TE/T2e));
         end
         plot(fr_sweep, fr_app, '-', 'Color', col, 'LineWidth', 1.5); hold on;
     end
 
-    % Identity line
     plot([0.3 0.6], [0.3 0.6], 'k--', 'LineWidth', 0.8);
 
     xlim([0.3 0.6]); ylim([0.3 0.85]);
@@ -147,23 +169,62 @@ end
 
 exportgraphics(gcf, 'fig_T2_fr_sweep_per_ROI.pdf', 'ContentType', 'vector');
 
-%% 7. Print summary tables for all 3 fCSF values
+%% ===================================================================
+%%  SENSITIVITY ANALYSIS: effect of fCSF
+%% ===================================================================
+
+fcsf_values = [0.02, 0.05, 0.10];
+colors = {[0.2 0.6 0.3], [0.8 0.5 0.2], [0.6 0.2 0.6]};
+
+%% 8. Figure 4: 3-panel bar — sensitivity to fCSF
+figure('unit','inch','position',[0 0 18 5]);
+tiledlayout(1, 3, 'TileSpacing', 'compact', 'Padding', 'compact');
+
 for ip = 1:3
     fcsf = fcsf_values(ip);
-    [pred_diff, f0_all, f_pred_C2] = compute_pred(fcsf);
-    unexplained = obs_diff - pred_diff;
+    pd = compute_pred_diff(fcsf, f_obs_C1, T2a_all, T2e_all, TE_C1, TE_C2, T2csf, Nroi);
 
-    fprintf('\n=== fCSF = %.2f ===\n', fcsf);
-    fprintf('%-16s  f0     fC1obs  fC2obs  fC2pred  obs%%    pred%%   resid%%\n', 'Tract');
-    fprintf('%-16s  -----  ------  ------  -------  ------  ------  ------\n', '');
-    for k = 1:Nroi
-        fprintf('%-16s  %.3f  %.3f   %.3f   %.3f    %+.1f%%  %+.1f%%  %+.1f%%\n', ...
-            roi_names{k}, f0_all(k), f_obs_C1(k), f_obs_C2(k), ...
-            f_pred_C2(k), obs_diff(k), pred_diff(k), unexplained(k));
-    end
-    fprintf('%-16s  %.3f                           %+.1f%%  %+.1f%%  %+.1f%%\n', ...
-        'Mean', mean(f0_all), mean(obs_diff), mean(pred_diff), mean(unexplained));
+    nexttile;
+    b = bar(categorical(roi_names, roi_names), [obs_diff, pd]);
+    b(1).FaceColor = [0.3 0.3 0.3];
+    b(2).FaceColor = colors{ip};
+    ylabel('(f_{C2} - f_{C1}) / f_{C1}  (%)');
+    title(sprintf('f_{CSF} = %.2f', fcsf));
+    legend({'Observed', 'T2-predicted'}, 'Location', 'southwest');
+    yline(0, 'k--', 'HandleVisibility', 'off');
+    grid on; box on;
+    set(gca, 'XTickLabelRotation', 45);
+    ylim([min(obs_diff)-5, 15]);
 end
+
+exportgraphics(gcf, 'fig_T2_fr_sensitivity_fcsf.pdf', 'ContentType', 'vector');
+
+%% 9. Figure 5: Scatter overlay — all fCSF values
+figure('unit','inch','position',[0 0 7 6]);
+hold on;
+
+% fCSF = 0 (primary)
+scatter(pred_diff, obs_diff, 70, 'filled', ...
+    'MarkerFaceColor', [0.2 0.5 0.7], 'MarkerFaceAlpha', 0.8);
+
+for ip = 1:3
+    fcsf = fcsf_values(ip);
+    pd = compute_pred_diff(fcsf, f_obs_C1, T2a_all, T2e_all, TE_C1, TE_C2, T2csf, Nroi);
+    scatter(pd, obs_diff, 50, 'filled', ...
+        'MarkerFaceColor', colors{ip}, 'MarkerFaceAlpha', 0.6);
+end
+
+lims2 = [min(obs_diff)-3, max(obs_diff)+3];
+plot(lims2, lims2, 'k--', 'LineWidth', 1.5);
+xlabel('T2-predicted difference (%)');
+ylabel('Observed difference (%)');
+title('Sensitivity of T2-predicted diff to f_{CSF}');
+legend([{'f_{CSF}=0'}, arrayfun(@(x) sprintf('f_{CSF}=%.2f',x), fcsf_values, 'UniformOutput', false)], ...
+    'Location', 'northwest');
+pbaspect([1 1 1]); grid on; box on;
+xlim(lims2); ylim(lims2);
+
+exportgraphics(gcf, 'fig_T2_fr_scatter_sensitivity.pdf', 'ContentType', 'vector');
 
 %% ---- Local function ----
 function [pred_diff, f0_all, f_pred_C2] = compute_pred_diff(fcsf, f_obs_C1, T2a, T2e, TE_C1, TE_C2, T2csf, Nroi)
