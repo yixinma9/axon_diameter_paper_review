@@ -126,7 +126,7 @@ end
 
 % Use last tiles (3x4=12, only 10 ROIs) for annotation
 nexttile; axis off;
-text(0.1, 0.5, sprintf('3-compartment model\n\nf_0 = %.2f\nf_{CSF} = %.2f\nT2_{CSF} = %d ms', f0, fcsf, T2csf), ...
+text(0.1, 0.5, sprintf('f_0 = %.2f\nf_{CSF} = %.2f\nT2_{CSF} = %d ms', f0, fcsf, T2csf), ...
     'FontSize', 14, 'VerticalAlignment', 'middle');
 
 exportgraphics(gcf, 'fig_T2_weighted_fraction_per_ROI.pdf', 'ContentType', 'vector');
