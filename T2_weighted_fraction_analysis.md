@@ -12,6 +12,8 @@ Since $T_2^a > T_2^e$ in white matter (Veraart et al., 2018), the extra-axonal s
 
 ### Method
 
+We adopted a two-compartment model (intra-axonal and extra-axonal, $f_{\text{csf}} = 0$) for this analysis, following the approach of Veraart et al. (2018) and Kaden et al. (2016). Although AxCaliber-SMT includes an isotropic compartment in its signal model, the free-water fraction in deep white matter is small and, crucially, CSF has a very long $T_2$ (~2000 ms at 3T) that produces negligible signal change between TE = 54 ms and TE = 77 ms ($e^{-54/2000} = 0.973$ vs $e^{-77/2000} = 0.962$, a ~1% difference). Including the isotropic compartment would therefore dilute the intra-/extra-axonal T2 contrast without meaningfully contributing to the C1–C2 difference in $f_r$.
+
 We used per-tract compartmental T2 values from Veraart et al. (2018), mapped from the JHU ICBM-DTI-81 atlas regions to the JHU tractography atlas tracts used in our analysis:
 
 | Tract (this study) | TEdDI ROI | $T_2^a$ (ms) | $T_2^e$ (ms) |
@@ -52,5 +54,7 @@ We then forward-predicted $f_r$ at both echo times from this tract-specific $f_0
 The T2 weighting model predicts that C2 should yield 4–12% lower restricted fractions than C1 across all tracts, consistent with the direction of the observed differences. For tracts such as ATR, the predicted and observed differences closely agree (−7.5% predicted vs −9 to −11% observed). For other tracts (e.g., CST), the observed difference substantially exceeds the T2 prediction, indicating that additional factors—such as lower SNR (18 vs 38) and reduced b-value range on C1—contribute to the gap. Conversely, for tracts where the observed difference is smaller than predicted (e.g., forceps, ILF, SLF L), compensating factors may partially offset the T2 effect.
 
 ### References
+
+Kaden, E., Kelm, N. D., Carson, R. P., Does, M. D., & Alexander, D. C. (2016). Multi-compartment microscopic diffusion imaging. *NeuroImage*, 139, 346–359. https://doi.org/10.1016/j.neuroimage.2016.06.002
 
 Veraart, J., Novikov, D. S., & Fieremans, E. (2018). TE dependent Diffusion Imaging (TEdDI) distinguishes between compartmental T2 relaxation times. *NeuroImage*, 182, 360–369. https://doi.org/10.1016/j.neuroimage.2017.09.030
