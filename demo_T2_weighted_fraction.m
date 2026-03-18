@@ -181,16 +181,12 @@ for k = 1:Nroi
     % Identity line
     plot([0.3 0.6], [0.3 0.6], 'k--', 'LineWidth', 0.8);
 
-    % Mark observed values
-    plot(f0_from_C1(k), f_obs_C1(k), 's', 'MarkerSize', 8, 'MarkerFaceColor', [0.2 0.4 0.8], 'MarkerEdgeColor', 'k');
-    plot(f0_from_C1(k), f_obs_C2(k), 'o', 'MarkerSize', 8, 'MarkerFaceColor', [0.8 0.2 0.2], 'MarkerEdgeColor', 'k');
-
     xlim([0.3 0.6]); ylim([0.3 0.85]);
     pbaspect([1 1 1]); grid on; box on;
     title(sprintf('%s (T2a=%d, T2e=%d)', roi_names{k}, T2a, T2e), 'FontSize', 8);
 
     if k == 1
-        legend({'C1 (TE=77)', 'C2 (TE=54)', 'Identity', 'C1 obs', 'C2 obs'}, ...
+        legend({'C1 (TE=77)', 'C2 (TE=54)', 'Identity'}, ...
             'FontSize', 6, 'Location', 'northwest');
     end
     if mod(k-1,4) == 0; ylabel('T2-weighted f_r'); end
