@@ -85,6 +85,8 @@ grid on; box on;
 exportgraphics(gcf, 'fig_T2_fr_pct_diff.pdf', 'ContentType', 'vector');
 
 %% 5. Figure 3: f(TE) vs original f sweep — per ROI (3x4 grid)
+fcsf = 0.05;
+T2csf = 2000;
 fr_sweep = linspace(0.3, 0.6, 50);
 
 figure('unit','inch','position',[0 0 16 12]);
@@ -100,30 +102,32 @@ for k = 1:Nroi
         fr_app = zeros(size(fr_sweep));
         for i = 1:numel(fr_sweep)
             f = fr_sweep(i);
-            fr_app(i) = f*exp(-TE/T2a) / (f*exp(-TE/T2a) + (1-f)*exp(-TE/T2e));
+            fe = 1 - f - fcsf;
+            ea = exp(-TE/T2a); ee = exp(-TE/T2e); ec = exp(-TE/T2csf);
+            fr_app(i) = f*ea / (f*ea + fe*ee + fcsf*ec);
         end
-        plot(fr_sweep, fr_app, '-', 'Color', col, 'LineWidth', 1.5); hold on;
+        plot(fr_sweep, fr_app, '-', 'Color', col, 'LineWidth', 2); hold on;
     end
 
-    plot([0.3 0.6], [0.3 0.6], 'k--', 'LineWidth', 0.8);
+    plot([0.3 0.6], [0.3 0.6], 'k--', 'LineWidth', 1);
 
-    xlim([0.3 0.6]); ylim([0.3 0.85]);
+    xlim([0.3 0.6]); ylim([0.3 0.6]);
     pbaspect([1 1 1]); grid on; box on;
-    title(sprintf('%s (T2a=%d, T2e=%d)', roi_names{k}, T2a, T2e), 'FontSize', 8);
+    set(gca, 'FontSize', 11);
+    title(sprintf('%s (T2a=%d, T2e=%d)', roi_names{k}, T2a, T2e), 'FontSize', 13);
 
     if k == 1
         legend({'C1 (TE=77)', 'C2 (TE=54)', 'Identity'}, ...
-            'FontSize', 6, 'Location', 'northwest');
+            'FontSize', 10, 'Location', 'northwest');
     end
-    if mod(k-1,4) == 0; ylabel('T2-weighted f_r'); end
-    if k > 7; xlabel('f_0'); end
+    if mod(k-1,4) == 0; ylabel('T2-weighted f_r', 'FontSize', 12); end
+    if k > 8; xlabel('f_0', 'FontSize', 12); end
 end
 
-% Use last tile (3x4=12, only 10 ROIs) for annotation
-nexttile;
-axis off;
-text(0.1, 0.5, sprintf('f_0 = %.2f\nfCSF = 0\n2-compartment', f0), ...
-    'FontSize', 10, 'VerticalAlignment', 'middle');
+% Use last tiles (3x4=12, only 10 ROIs) for annotation
+nexttile; axis off;
+text(0.1, 0.5, sprintf('f_0 = %.2f\nf_{CSF} = %.2f\nT2_{CSF} = %d ms', f0, fcsf, T2csf), ...
+    'FontSize', 14, 'VerticalAlignment', 'middle');
 
 exportgraphics(gcf, 'fig_T2_weighted_fraction_per_ROI.pdf', 'ContentType', 'vector');
 
