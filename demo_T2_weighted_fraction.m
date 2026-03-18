@@ -109,10 +109,10 @@ for k = 1:Nroi
         plot(fr_sweep, fr_app, '-', 'Color', col, 'LineWidth', 2); hold on;
     end
 
-    plot([0.3 0.6], [0.3 0.6], 'k--', 'LineWidth', 1);
+    plot([0.3 0.8], [0.3 0.8], 'k--', 'LineWidth', 1);
 
-    xlim([0.3 0.6]); ylim([0.3 0.6]);
-    pbaspect([1 1 1]); grid on; box on;
+    xlim([0.3 0.6]); ylim([0.3 0.8]);
+    grid on; box on;
     set(gca, 'FontSize', 11);
     title(sprintf('%s (T2a=%d, T2e=%d)', roi_names{k}, T2a, T2e), 'FontSize', 13);
 
@@ -126,7 +126,7 @@ end
 
 % Use last tiles (3x4=12, only 10 ROIs) for annotation
 nexttile; axis off;
-text(0.1, 0.5, sprintf('f_0 = %.2f\nf_{CSF} = %.2f\nT2_{CSF} = %d ms', f0, fcsf, T2csf), ...
+text(0.1, 0.5, sprintf('3-compartment model\n\nf_0 = %.2f\nf_{CSF} = %.2f\nT2_{CSF} = %d ms', f0, fcsf, T2csf), ...
     'FontSize', 14, 'VerticalAlignment', 'middle');
 
 exportgraphics(gcf, 'fig_T2_weighted_fraction_per_ROI.pdf', 'ContentType', 'vector');
