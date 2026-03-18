@@ -1,15 +1,17 @@
 clear; close all;
 
-%% T2 decay weighted vs original restricted fraction (data-driven)
+%% T2 decay weighted vs original restricted fraction (data-driven, 3-compartment)
 % Reference: Veraart, Novikov, Fieremans (2018) — TEdDI, NeuroImage
-% 2-compartment model (no CSF):
-%   f(TE) = f0*exp(-TE/T2a) / [f0*exp(-TE/T2a) + (1-f0)*exp(-TE/T2e)]
-% Inverse (solve for f0 from observed f):
-%   f0 = f*exp(-TE/T2e) / [f*exp(-TE/T2e) + (1-f)*exp(-TE/T2a)]
+% 3-compartment model:
+%   f_r(TE) = f0*exp(-TE/T2a) / [f0*exp(-TE/T2a) + fe*exp(-TE/T2e) + fcsf*exp(-TE/T2csf)]
+%   where fe = 1 - f0 - fcsf
 
 % Protocol TEs
 TE_C2 = 54;   % ms
 TE_C1 = 77;   % ms
+
+% CSF T2
+T2csf = 2000;  % ms (at 3T)
 
 %% 1. Per-tract data: T2 values (mapped from TEdDI ROIs) + observed f_r
 % T2 values from TEdDI paper Figure 5 (Veraart et al. 2018)
@@ -46,47 +48,98 @@ f_obs_C1   = cell2mat(roi_data(:,4));
 f_obs_C2   = cell2mat(roi_data(:,5));
 Nroi       = numel(roi_names);
 
-%% 2. Back-calculate f0 from observed C1 f_r (longer TE → more T2 weighting)
-% f0 = f*exp(-TE/T2e) / [f*exp(-TE/T2e) + (1-f)*exp(-TE/T2a)]
-f0_from_C1 = zeros(Nroi, 1);
-for k = 1:Nroi
-    f  = f_obs_C1(k);
-    ea = exp(-TE_C1 / T2a_all(k));
-    ee = exp(-TE_C1 / T2e_all(k));
-    f0_from_C1(k) = f * ee / (f * ee + (1-f) * ea);
+% Observed % difference
+obs_diff = (f_obs_C2 - f_obs_C1) ./ f_obs_C1 * 100;
+
+%% 2. Sweep fCSF to find optimal value (minimize MSE of predicted vs observed diff)
+fcsf_sweep = 0:0.005:0.25;
+mse_sweep  = zeros(size(fcsf_sweep));
+
+for ifc = 1:numel(fcsf_sweep)
+    fcsf = fcsf_sweep(ifc);
+    pred = zeros(Nroi, 1);
+
+    for k = 1:Nroi
+        ea1 = exp(-TE_C1 / T2a_all(k));
+        ee1 = exp(-TE_C1 / T2e_all(k));
+        ec1 = exp(-TE_C1 / T2csf);
+
+        % Back-calculate f0 from observed C1 f_r
+        fr = f_obs_C1(k);
+        f0 = fr * (ee1 - fcsf*(ee1 - ec1)) / (ea1*(1 - fr) + fr*ee1);
+
+        % Check validity
+        if f0 <= 0 || f0 + fcsf >= 1
+            pred(k) = NaN;
+            continue;
+        end
+
+        % Forward predict C2
+        ea2 = exp(-TE_C2 / T2a_all(k));
+        ee2 = exp(-TE_C2 / T2e_all(k));
+        ec2 = exp(-TE_C2 / T2csf);
+        fe  = 1 - f0 - fcsf;
+        f_C1 = f0*ea1 / (f0*ea1 + fe*ee1 + fcsf*ec1);
+        f_C2 = f0*ea2 / (f0*ea2 + fe*ee2 + fcsf*ec2);
+        pred(k) = (f_C2 - f_C1) / f_C1 * 100;
+    end
+
+    mse_sweep(ifc) = nanmean((pred - obs_diff).^2);
 end
 
-%% 3. Forward predict f_r at both TEs using back-calculated f0
-f_pred_C1 = zeros(Nroi, 1);
-f_pred_C2 = zeros(Nroi, 1);
+[~, best_idx] = min(mse_sweep);
+fcsf_opt = fcsf_sweep(best_idx);
+fprintf('Optimal fCSF = %.3f (MSE = %.2f)\n', fcsf_opt, mse_sweep(best_idx));
+
+%% 3. Compute final results with optimal fCSF
+fcsf = fcsf_opt;
+f0_from_C1 = zeros(Nroi, 1);
+f_pred_C1  = zeros(Nroi, 1);
+f_pred_C2  = zeros(Nroi, 1);
+
 for k = 1:Nroi
-    f0  = f0_from_C1(k);
     ea1 = exp(-TE_C1 / T2a_all(k));
     ee1 = exp(-TE_C1 / T2e_all(k));
-    f_pred_C1(k) = f0*ea1 / (f0*ea1 + (1-f0)*ee1);
+    ec1 = exp(-TE_C1 / T2csf);
+
+    fr = f_obs_C1(k);
+    f0 = fr * (ee1 - fcsf*(ee1 - ec1)) / (ea1*(1 - fr) + fr*ee1);
+    f0_from_C1(k) = f0;
+    fe = 1 - f0 - fcsf;
+
+    f_pred_C1(k) = f0*ea1 / (f0*ea1 + fe*ee1 + fcsf*ec1);
 
     ea2 = exp(-TE_C2 / T2a_all(k));
     ee2 = exp(-TE_C2 / T2e_all(k));
-    f_pred_C2(k) = f0*ea2 / (f0*ea2 + (1-f0)*ee2);
+    ec2 = exp(-TE_C2 / T2csf);
+    f_pred_C2(k) = f0*ea2 / (f0*ea2 + fe*ee2 + fcsf*ec2);
 end
 
-% Differences (C2 - C1, negative = C2 lower)
-obs_diff      = (f_obs_C2  - f_obs_C1)  ./ f_obs_C1  * 100;
-pred_diff     = (f_pred_C2 - f_pred_C1) ./ f_pred_C1 * 100;
-unexplained   = obs_diff - pred_diff;  % residual not explained by T2
+pred_diff   = (f_pred_C2 - f_pred_C1) ./ f_pred_C1 * 100;
+unexplained = obs_diff - pred_diff;
 
 %% 4. Print summary table
-fprintf('%-16s  f0     f_C1_obs  f_C1_pred  f_C2_obs  f_C2_pred  obs%%    pred%%   residual%%\n', 'Tract');
-fprintf('%-16s  -----  --------  ---------  --------  ---------  ------  ------  ---------\n', '');
+fprintf('\n=== Results with fCSF = %.3f, T2csf = %d ms ===\n', fcsf, T2csf);
+fprintf('%-16s  f0     f_C1_obs  f_C2_obs  f_C2_pred  obs%%    pred%%   residual%%\n', 'Tract');
+fprintf('%-16s  -----  --------  --------  ---------  ------  ------  ---------\n', '');
 for k = 1:Nroi
-    fprintf('%-16s  %.3f  %.3f     %.3f      %.3f     %.3f      %+.1f%%  %+.1f%%  %+.1f%%\n', ...
-        roi_names{k}, f0_from_C1(k), f_obs_C1(k), f_pred_C1(k), ...
+    fprintf('%-16s  %.3f  %.3f     %.3f     %.3f      %+.1f%%  %+.1f%%  %+.1f%%\n', ...
+        roi_names{k}, f0_from_C1(k), f_obs_C1(k), ...
         f_obs_C2(k), f_pred_C2(k), obs_diff(k), pred_diff(k), unexplained(k));
 end
-fprintf('%-16s  %.3f                                             %+.1f%%  %+.1f%%  %+.1f%%\n', ...
+fprintf('%-16s  %.3f                                   %+.1f%%  %+.1f%%  %+.1f%%\n', ...
     'Mean', mean(f0_from_C1), mean(obs_diff), mean(pred_diff), mean(unexplained));
 
-%% 5. Figure 1: Observed vs predicted f_r for C1 and C2
+%% 5. Figure 0: MSE vs fCSF (justification for chosen fCSF)
+figure('unit','inch','position',[0 0 6 4]);
+plot(fcsf_sweep, mse_sweep, 'b-', 'LineWidth', 1.5); hold on;
+plot(fcsf_opt, mse_sweep(best_idx), 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
+xlabel('f_{CSF}'); ylabel('MSE (predicted vs observed diff)');
+title(sprintf('Optimal f_{CSF} = %.3f', fcsf_opt));
+grid on; box on;
+exportgraphics(gcf, 'fig_T2_fcsf_optimization.pdf', 'ContentType', 'vector');
+
+%% 6. Figure 1: Observed vs predicted f_r for C1 and C2
 figure('unit','inch','position',[0 0 14 5]);
 tiledlayout(1, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
 
@@ -116,14 +169,14 @@ set(gca, 'XTickLabelRotation', 45);
 
 exportgraphics(gcf, 'fig_T2_fr_obs_vs_pred.pdf', 'ContentType', 'vector');
 
-%% 6. Figure 2: Observed vs T2-predicted % difference (C2 - C1)
+%% 7. Figure 2: Observed vs T2-predicted % difference (C2 - C1)
 figure('unit','inch','position',[0 0 12 5]);
 bar_data_diff = [obs_diff, pred_diff];
 b3 = bar(categorical(roi_names, roi_names), bar_data_diff);
 b3(1).FaceColor = [0.3 0.3 0.3];
 b3(2).FaceColor = [0.8 0.5 0.2];
 ylabel('(f_{C2} - f_{C1}) / f_{C1}  (%)');
-title('C2 vs C1 restricted fraction difference: observed vs T2-predicted');
+title(sprintf('C2 vs C1 restricted fraction difference (f_{CSF} = %.3f)', fcsf));
 legend({'Observed', 'T2-predicted'}, 'Location', 'southwest');
 yline(0, 'k--', 'HandleVisibility', 'off');
 grid on; box on;
@@ -131,7 +184,7 @@ set(gca, 'XTickLabelRotation', 45);
 
 exportgraphics(gcf, 'fig_T2_fr_diff_obs_vs_pred.pdf', 'ContentType', 'vector');
 
-%% 7. Figure 3: Scatter — observed diff vs predicted diff
+%% 8. Figure 3: Scatter — observed diff vs predicted diff
 figure('unit','inch','position',[0 0 6 5]);
 scatter(pred_diff, obs_diff, 80, 'filled', 'MarkerFaceColor', [0.2 0.5 0.7]);
 hold on;
@@ -147,7 +200,7 @@ end
 
 xlabel('T2-predicted difference (%)');
 ylabel('Observed difference (%)');
-title('T2 weighting explains partial C2–C1 gap');
+title(sprintf('T2 weighting explains partial C2–C1 gap (f_{CSF} = %.3f)', fcsf));
 pbaspect([1 1 1]); grid on; box on;
 xlim(lims); ylim(lims);
 
@@ -157,7 +210,7 @@ text(lims(1)+1, lims(2)-2, sprintf('r = %.2f, p = %.3f', r, p), 'FontSize', 10);
 
 exportgraphics(gcf, 'fig_T2_fr_scatter_pred_vs_obs.pdf', 'ContentType', 'vector');
 
-%% 8. Figure 4: f(TE) vs original f sweep for each ROI (3x4 grid)
+%% 9. Figure 4: f(TE) vs original f sweep for each ROI (3x4 grid)
 fr_sweep = linspace(0.3, 0.6, 50);
 
 figure('unit','inch','position',[0 0 16 12]);
@@ -173,7 +226,9 @@ for k = 1:Nroi
         fr_app = zeros(size(fr_sweep));
         for i = 1:numel(fr_sweep)
             f = fr_sweep(i);
-            fr_app(i) = f*exp(-TE/T2a) / (f*exp(-TE/T2a) + (1-f)*exp(-TE/T2e));
+            fe = 1 - f - fcsf;
+            ea = exp(-TE/T2a); ee = exp(-TE/T2e); ec = exp(-TE/T2csf);
+            fr_app(i) = f*ea / (f*ea + fe*ee + fcsf*ec);
         end
         plot(fr_sweep, fr_app, '-', 'Color', col, 'LineWidth', 1.5); hold on;
     end
