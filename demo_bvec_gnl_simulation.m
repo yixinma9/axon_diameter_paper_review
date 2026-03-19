@@ -1,3 +1,4 @@
+function demo_bvec_gnl_simulation()
 clear; close all;
 
 %% Simulate AxCaliber-SMT signal with full GNL (b-scaling + b-rotation)
@@ -220,6 +221,8 @@ box on; grid on;
 sgtitle(sprintf('GNL bias simulation (gnl\\_scale = %.1f)', gnl_scale), 'FontSize', 13);
 exportgraphics(gcf, 'fig4_bar_bias_rmse.pdf', 'ContentType', 'vector');
 fprintf('\nSaved fig4_bar_bias_rmse.pdf\n');
+
+end  % main function
 
 %% ======================================================================
 %  Helper functions
