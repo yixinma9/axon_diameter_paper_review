@@ -11,8 +11,7 @@ clear; close all;
 % Two GNL regimes: b_scale > 1 (L_base) and b_scale < 1 (-L_base)
 % Output: bar plot of bias for [a, f] x [C1, C2] x [b>1, b<1]
 
-addpath(genpath('/Users/quantum/gacelle/AxCaliberSMT'));
-addpath(genpath('/Users/quantum/gacelle/utils'));
+% No external dependencies needed — all helpers are local functions
 
 %% 1. Ground truth tissue parameters
 a_true    = 4;        % axon diameter [um]
@@ -156,16 +155,18 @@ for ip = 1:2
         end
 
         % ---- Fit ----
-        smt = gpuAxCaliberSMT(b_sh, del_sh, Del_sh, D0, Da, DeL, Dcsf);
+        g2_sh = b_sh ./ (del_sh.^2 .* (Del_sh - del_sh/3));
 
         % Baseline: no GNL, standard fit
-        p_bl = fit_smt(smt, S_baseline, bm2);
+        p_bl = fit_smt(b_sh, g2_sh, del_sh, Del_sh, Da, DeL, D0, Dcsf, bm2, S_baseline);
 
         % Scenario 1: GNL, no correction
-        p_nc = fit_smt(smt, S_gnl, bm2);
+        p_nc = fit_smt(b_sh, g2_sh, del_sh, Del_sh, Da, DeL, D0, Dcsf, bm2, S_gnl);
 
         % Scenario 2: GNL, scalar b_scale correction
-        p_bs = fit_smt_bscale(smt, S_gnl, bm2, b_scale_scalar);
+        b_corr  = b_sh * b_scale_scalar;
+        g2_corr = b_corr ./ (del_sh.^2 .* (Del_sh - del_sh/3));
+        p_bs = fit_smt(b_corr, g2_corr, del_sh, Del_sh, Da, DeL, D0, Dcsf, bm2, S_gnl);
 
         % Store bias
         bias_a(ip, ir, :) = [p_bl.a - a_true, p_nc.a - a_true, p_bs.a - a_true];
@@ -243,28 +244,8 @@ function C = vg_atten(r, g2_perp, delta, Delta, D0, bm2)
     C = C * D0 * g2_perp * td^3;
 end
 
-function pars = fit_smt(smt, S_data, bm2)
-    b  = double(smt.b);  del = double(smt.delta);  Del = double(smt.Delta);
-    Da = double(smt.Da); DeL = double(smt.DeL);
-    D0 = double(smt.D0); Dcsf = double(smt.Dcsf);
-    g2 = b ./ (del.^2 .* (Del - del/3));
+function pars = fit_smt(b, g2, del, Del, Da, DeL, D0, Dcsf, bm2, S_data)
     S_data = double(S_data(:));
-
-    cost = @(x) smt_res(x, b, g2, del, Del, Da, DeL, D0, Dcsf, bm2, S_data);
-    opts = optimoptions('lsqnonlin', 'Display','off', 'MaxIterations',500, ...
-        'FunctionTolerance',1e-12, 'StepTolerance',1e-12);
-    x = lsqnonlin(cost, [3 0.5 0.05 0.5], [0.1 0 0 0.01], [20 1 1 DeL], opts);
-    pars = struct('a',x(1),'f',x(2),'fcsf',x(3),'DeR',x(4));
-end
-
-function pars = fit_smt_bscale(smt, S_data, bm2, b_scale)
-    b  = double(smt.b) * b_scale;
-    del = double(smt.delta);  Del = double(smt.Delta);
-    Da = double(smt.Da); DeL = double(smt.DeL);
-    D0 = double(smt.D0); Dcsf = double(smt.Dcsf);
-    g2 = b ./ (del.^2 .* (Del - del/3));
-    S_data = double(S_data(:));
-
     cost = @(x) smt_res(x, b, g2, del, Del, Da, DeL, D0, Dcsf, bm2, S_data);
     opts = optimoptions('lsqnonlin', 'Display','off', 'MaxIterations',500, ...
         'FunctionTolerance',1e-12, 'StepTolerance',1e-12);
