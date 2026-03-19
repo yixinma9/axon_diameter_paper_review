@@ -3,13 +3,12 @@ clear; close all;
 %% Simulate AxCaliber-SMT signal with full GNL (b-scaling + b-rotation)
 %
 % Three scenarios compared for BOTH C1 and C2:
-%   Baseline  : No GNL            → fit with standard SMT
-%   Scenario 1: GNL (scale+rot)   → fit with NO correction
-%   Scenario 2: GNL (scale+rot)   → fit with scalar b_scale correction
+%   Baseline  : No GNL            -> fit with standard SMT
+%   Scenario 1: GNL (scale+rot)   -> fit with NO correction
+%   Scenario 2: GNL (scale+rot)   -> fit with scalar b_scale correction
 %
-% Signal generation uses the directional model (angle-dependent),
-% then averaged per shell to obtain the spherical mean.
-% Fitting uses the standard SMT (orientation-free) forward model.
+% Two GNL regimes: b_scale > 1 (L_base) and b_scale < 1 (-L_base)
+% Output: bar plot of bias for [a, f] x [C1, C2] x [b>1, b<1]
 
 addpath(genpath('/Users/quantum/gacelle/AxCaliberSMT'));
 addpath(genpath('/Users/quantum/gacelle/utils'));
@@ -39,7 +38,7 @@ b_C1     = b_C2 * (Gmax_C1/Gmax_C2)^2;
 delta_C1 = delta_C2;
 Delta_C1 = Delta_C2;
 
-%% 3. Actual gradient directions from C2 b-table (sub-001.bvec, first b=50 shell)
+%% 3. Actual gradient directions from C2 b-table (sub-001.bvec)
 bvecs = [-0.5899516186,  0.9725294444,  0.4117928911,  0.1356963446, ...
           0.7850186249,  0.8149950102,  0.5622431322,  0.0866392126, ...
           0.4973663712,  0.8953048492, -0.0273308969,  0.2337241520, ...
@@ -52,34 +51,39 @@ bvecs = [-0.5899516186,  0.9725294444,  0.4117928911,  0.1356963446, ...
           0.6048725318, -0.4578233308,  0.4053304539,  0.9960754939, ...
           0.8588030468,  0.0156469120,  0.8999462683,  0.1758976830, ...
           0.7552393588, -0.5724923545, -0.6233189869,  0.1756500284];
-% bvecs: [3 x 16], each column is a unit gradient direction
 Ndirs = size(bvecs, 2);
 
-%% 4. Fiber direction
-fiber_dir = [0; 0; 1];   % along z-axis
+%% 4. Fiber direction and Van Gelderen Bessel zeros
+fiber_dir = [0; 0; 1];
+bm  = [1.8412 5.3314 8.5363 11.7060 14.8636 18.0155 21.1644 24.3113 27.4571 30.6019];
+bm2 = bm.^2;
 
-%% 5. GNL L-matrix sweep
+%% 5. GNL L-matrix
 % L is the gradient deviation tensor: g_eff = (I + L) * g_nominal
 % Realistic anisotropic L (~3-4% diagonal, ~1% off-diagonal)
 L_base = [ 0.03   0.01   0.005;
            0.01  -0.02   0.008;
            0.005  0.008  0.04];
 
-gnl_scales = 0:0.5:3.0;   % 0 = no GNL, 3 = severe (~12% deviation)
-Ngnl = numel(gnl_scales);
+gnl_scale = 1.0;   % representative GNL severity
 
-%% 6. Van Gelderen Bessel function zeros
-bm = [1.8412 5.3314 8.5363 11.7060 14.8636 18.0155 21.1644 24.3113 27.4571 30.6019];
-bm2 = bm.^2;
+% Two regimes: +L gives b_scale > 1, -L gives b_scale < 1
+regimes = struct('label', {'b_{scale} > 1', 'b_{scale} < 1'}, ...
+                 'L',     {gnl_scale * L_base, -gnl_scale * L_base});
 
-%% 7. Run simulation for both protocols
+%% 6. Protocols
 protocols = struct( ...
     'name',  {'C2', 'C1'}, ...
     'b',     {b_C2, b_C1}, ...
     'delta', {delta_C2, delta_C1}, ...
     'Delta', {Delta_C2, Delta_C1});
 
-all_results = struct();
+%% 7. Run simulation
+% Store bias: bias_a(ip, ir, 1:3) and bias_f(ip, ir, 1:3)
+%   ip=1:C2, ip=2:C1;  ir=1:b>1, ir=2:b<1;  dim3 = [baseline, nocorr, bscale]
+bias_a = zeros(2, 2, 3);
+bias_f = zeros(2, 2, 3);
+bscale_values = zeros(2, 2);  % for reporting
 
 for ip = 1:2
     pname  = protocols(ip).name;
@@ -89,30 +93,21 @@ for ip = 1:2
     Nsh    = numel(b_sh);
     g_sh   = sqrt(b_sh ./ (del_sh.^2 .* (Del_sh - del_sh/3)));
 
-    res.gnl_scales   = gnl_scales;
-    res.b_scale_true = zeros(Ngnl, 1);
-    res.a_baseline   = zeros(Ngnl, 1);  res.f_baseline   = zeros(Ngnl, 1);
-    res.a_nocorr     = zeros(Ngnl, 1);  res.f_nocorr     = zeros(Ngnl, 1);
-    res.a_bscale     = zeros(Ngnl, 1);  res.f_bscale     = zeros(Ngnl, 1);
-    res.fcsf_baseline = zeros(Ngnl,1);  res.DeR_baseline  = zeros(Ngnl,1);
-    res.fcsf_nocorr   = zeros(Ngnl,1);  res.DeR_nocorr    = zeros(Ngnl,1);
-    res.fcsf_bscale   = zeros(Ngnl,1);  res.DeR_bscale    = zeros(Ngnl,1);
-
-    for ig = 1:Ngnl
-        L = gnl_scales(ig) * L_base;
+    for ir = 1:2
+        L = regimes(ir).L;
         M = eye(3) + L;
 
         % Per-direction effective quantities
-        g_eff_all       = M * bvecs;                      % [3 x Ndirs]
-        b_scale_per_dir = sum(g_eff_all.^2, 1);           % |M*g_hat|^2, [1 x Ndirs]
+        g_eff_all       = M * bvecs;                       % [3 x Ndirs]
+        b_scale_per_dir = sum(g_eff_all.^2, 1);            % |M*g_hat|^2
         g_eff_hat       = g_eff_all ./ vecnorm(g_eff_all); % unit effective dirs
 
         % Scalar b_scale = trace(M'*M)/3
         b_scale_scalar = trace(M' * M) / 3;
-        res.b_scale_true(ig) = b_scale_scalar;
+        bscale_values(ip, ir) = b_scale_scalar;
 
         % Angles with GNL
-        cos_theta  = abs(g_eff_hat' * fiber_dir);   % [Ndirs x 1]
+        cos_theta  = abs(g_eff_hat' * fiber_dir);
         sin2_theta = 1 - cos_theta.^2;
         cos2_theta = cos_theta.^2;
 
@@ -131,7 +126,7 @@ for ip = 1:2
             del = del_sh(is);
             Del = Del_sh(is);
 
-            % Baseline (no GNL)
+            % Baseline (no GNL): directional signal, averaged over directions
             Sd = zeros(Ndirs, 1);
             for id = 1:Ndirs
                 g2p = g0^2 * sin2_nom(id);
@@ -162,76 +157,69 @@ for ip = 1:2
         % ---- Fit ----
         smt = gpuAxCaliberSMT(b_sh, del_sh, Del_sh, D0, Da, DeL, Dcsf);
 
-        % Baseline
-        p = fit_smt(smt, S_baseline, bm2);
-        res.a_baseline(ig) = p.a;  res.f_baseline(ig) = p.f;
-        res.fcsf_baseline(ig) = p.fcsf; res.DeR_baseline(ig) = p.DeR;
+        % Baseline: no GNL, standard fit
+        p_bl = fit_smt(smt, S_baseline, bm2);
 
         % Scenario 1: GNL, no correction
-        p = fit_smt(smt, S_gnl, bm2);
-        res.a_nocorr(ig) = p.a;  res.f_nocorr(ig) = p.f;
-        res.fcsf_nocorr(ig) = p.fcsf; res.DeR_nocorr(ig) = p.DeR;
+        p_nc = fit_smt(smt, S_gnl, bm2);
 
         % Scenario 2: GNL, scalar b_scale correction
-        p = fit_smt_bscale(smt, S_gnl, bm2, b_scale_scalar);
-        res.a_bscale(ig) = p.a;  res.f_bscale(ig) = p.f;
-        res.fcsf_bscale(ig) = p.fcsf; res.DeR_bscale(ig) = p.DeR;
+        p_bs = fit_smt_bscale(smt, S_gnl, bm2, b_scale_scalar);
 
-        fprintf('%s | GNL=%.1f  b_scale=%.4f | a: bl=%.2f nc=%.2f bs=%.2f | f: bl=%.3f nc=%.3f bs=%.3f\n', ...
-            pname, gnl_scales(ig), b_scale_scalar, ...
-            res.a_baseline(ig), res.a_nocorr(ig), res.a_bscale(ig), ...
-            res.f_baseline(ig), res.f_nocorr(ig), res.f_bscale(ig));
-    end
+        % Store bias
+        bias_a(ip, ir, :) = [p_bl.a - a_true, p_nc.a - a_true, p_bs.a - a_true];
+        bias_f(ip, ir, :) = [p_bl.f - f_true, p_nc.f - f_true, p_bs.f - f_true];
 
-    all_results.(pname) = res;
-end
-
-%% 8. Plot
-figure('Units','inches','Position',[0 0 14 10]);
-pnames = {'C2', 'C1'};
-col_bl = [0 0 0]; col_nc = [0.8 0.2 0.2]; col_bs = [0.2 0.4 0.8];
-
-for ip = 1:2
-    r = all_results.(pnames{ip});
-
-    % Axon diameter
-    subplot(2,2,(ip-1)*2+1);
-    plot(r.gnl_scales, r.a_baseline, '-o', 'Color', col_bl, 'LineWidth', 2, 'DisplayName', 'Baseline (no GNL)'); hold on;
-    plot(r.gnl_scales, r.a_nocorr,   '-s', 'Color', col_nc, 'LineWidth', 2, 'DisplayName', 'GNL, no correction');
-    plot(r.gnl_scales, r.a_bscale,   '-^', 'Color', col_bs, 'LineWidth', 2, 'DisplayName', 'GNL, b-scale corr.');
-    yline(a_true, 'k--', 'LineWidth', 1, 'HandleVisibility', 'off');
-    xlabel('GNL severity (\times L_{base})'); ylabel('Axon diameter [\mum]');
-    title(sprintf('%s — Axon diameter (truth = %.1f \\mum)', pnames{ip}, a_true));
-    legend('Location', 'best'); grid on; box on; set(gca, 'FontSize', 12);
-
-    % Volume fraction
-    subplot(2,2,(ip-1)*2+2);
-    plot(r.gnl_scales, r.f_baseline, '-o', 'Color', col_bl, 'LineWidth', 2, 'DisplayName', 'Baseline (no GNL)'); hold on;
-    plot(r.gnl_scales, r.f_nocorr,   '-s', 'Color', col_nc, 'LineWidth', 2, 'DisplayName', 'GNL, no correction');
-    plot(r.gnl_scales, r.f_bscale,   '-^', 'Color', col_bs, 'LineWidth', 2, 'DisplayName', 'GNL, b-scale corr.');
-    yline(f_true, 'k--', 'LineWidth', 1, 'HandleVisibility', 'off');
-    xlabel('GNL severity (\times L_{base})'); ylabel('Restricted fraction');
-    title(sprintf('%s — Restricted fraction (truth = %.2f)', pnames{ip}, f_true));
-    legend('Location', 'best'); grid on; box on; set(gca, 'FontSize', 12);
-end
-
-sgtitle(sprintf('GNL simulation: a_{true}=%.1f\\mum, f=%.2f, f_{csf}=%.2f, D_{eR}=%.1f', ...
-    a_true, f_true, fcsf_true, DeR_true), 'FontSize', 14);
-exportgraphics(gcf, 'fig_bvec_gnl_simulation.pdf', 'ContentType', 'vector');
-
-%% Print summary table
-fprintf('\n===== Summary =====\n');
-fprintf('%-4s  %-5s  %-7s  %-12s  %-12s  %-12s  %-12s  %-12s  %-12s\n', ...
-    'Prot','GNL','b_scale','a_baseline','a_nocorr','a_bscale','f_baseline','f_nocorr','f_bscale');
-for ip = 1:2
-    r = all_results.(pnames{ip});
-    for ig = 1:Ngnl
-        fprintf('%-4s  %4.1f  %7.4f  %10.3f  %10.3f  %10.3f  %10.4f  %10.4f  %10.4f\n', ...
-            pnames{ip}, r.gnl_scales(ig), r.b_scale_true(ig), ...
-            r.a_baseline(ig), r.a_nocorr(ig), r.a_bscale(ig), ...
-            r.f_baseline(ig), r.f_nocorr(ig), r.f_bscale(ig));
+        fprintf('%s | %s | b_scale=%.4f | a bias: bl=%+.3f  nc=%+.3f  bs=%+.3f | f bias: bl=%+.4f  nc=%+.4f  bs=%+.4f\n', ...
+            pname, regimes(ir).label, b_scale_scalar, ...
+            p_bl.a-a_true, p_nc.a-a_true, p_bs.a-a_true, ...
+            p_bl.f-f_true, p_nc.f-f_true, p_bs.f-f_true);
     end
 end
+
+%% 8. Bar plot
+figure('Units','inches','Position',[1 1 13 5]);
+
+scenarios = {'Baseline', 'No correction', 'b-scale correction'};
+colors    = [0.3 0.3 0.3; 0.85 0.25 0.25; 0.25 0.45 0.85];
+
+% Group order: C2 b>1, C2 b<1, C1 b>1, C1 b<1
+group_labels = {sprintf('C2\n(b_{sc}=%.3f)', bscale_values(1,1)), ...
+                sprintf('C2\n(b_{sc}=%.3f)', bscale_values(1,2)), ...
+                sprintf('C1\n(b_{sc}=%.3f)', bscale_values(2,1)), ...
+                sprintf('C1\n(b_{sc}=%.3f)', bscale_values(2,2))};
+
+% Reshape: [4 groups x 3 scenarios]
+a_data = [squeeze(bias_a(1,1,:))'; squeeze(bias_a(1,2,:))'; ...
+          squeeze(bias_a(2,1,:))'; squeeze(bias_a(2,2,:))'];
+f_data = [squeeze(bias_f(1,1,:))'; squeeze(bias_f(1,2,:))'; ...
+          squeeze(bias_f(2,1,:))'; squeeze(bias_f(2,2,:))'];
+
+% --- Axon diameter bias ---
+subplot(1,2,1);
+bh = bar(a_data, 'grouped');
+for k = 1:3, bh(k).FaceColor = colors(k,:); end
+set(gca, 'XTickLabel', group_labels, 'FontSize', 11);
+ylabel('Axon diameter bias [\mum]');
+yline(0, 'k-', 'LineWidth', 0.8, 'HandleVisibility', 'off');
+legend(scenarios, 'Location', 'best', 'FontSize', 9);
+title(sprintf('Axon diameter (truth = %.1f \\mum)', a_true));
+box on; grid on;
+
+% --- Restricted fraction bias ---
+subplot(1,2,2);
+bh = bar(f_data, 'grouped');
+for k = 1:3, bh(k).FaceColor = colors(k,:); end
+set(gca, 'XTickLabel', group_labels, 'FontSize', 11);
+ylabel('Restricted fraction bias');
+yline(0, 'k-', 'LineWidth', 0.8, 'HandleVisibility', 'off');
+legend(scenarios, 'Location', 'best', 'FontSize', 9);
+title(sprintf('Restricted fraction (truth = %.2f)', f_true));
+box on; grid on;
+
+sgtitle(sprintf('GNL bias simulation (gnl\\_scale = %.1f)', gnl_scale), 'FontSize', 13);
+exportgraphics(gcf, 'fig4_bar_bias_rmse.pdf', 'ContentType', 'vector');
+fprintf('\nSaved fig4_bar_bias_rmse.pdf\n');
 
 %% ======================================================================
 %  Helper functions
@@ -253,7 +241,6 @@ function C = vg_atten(r, g2_perp, delta, Delta, D0, bm2)
 end
 
 function pars = fit_smt(smt, S_data, bm2)
-    % Fit standard SMT model using lsqnonlin
     b  = double(smt.b);  del = double(smt.delta);  Del = double(smt.Delta);
     Da = double(smt.Da); DeL = double(smt.DeL);
     D0 = double(smt.D0); Dcsf = double(smt.Dcsf);
@@ -268,7 +255,6 @@ function pars = fit_smt(smt, S_data, bm2)
 end
 
 function pars = fit_smt_bscale(smt, S_data, bm2, b_scale)
-    % Fit SMT model with scalar b_scale correction
     b  = double(smt.b) * b_scale;
     del = double(smt.delta);  Del = double(smt.Delta);
     Da = double(smt.Da); DeL = double(smt.DeL);
@@ -284,7 +270,6 @@ function pars = fit_smt_bscale(smt, S_data, bm2, b_scale)
 end
 
 function res = smt_res(x, b, g2, del, Del, Da, DeL, D0, Dcsf, bm2, S_data)
-    % SMT powder-averaged forward model residual
     r = x(1)/2; f = x(2); fcsf = x(3); DeR = x(4);
     N = numel(b);
     S = zeros(N,1);
