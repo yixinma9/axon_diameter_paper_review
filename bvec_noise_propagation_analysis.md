@@ -2,7 +2,7 @@
 
 ### Background
 
-Gradient nonlinearity (GNL) affects diffusion MRI measurements by spatially varying the effective gradient field. The standard scalar b-value correction accounts for changes in gradient *magnitude* (b-scaling), but GNL also rotates the effective gradient direction. For the Connectome scanners, which use high-performance gradient coils (C2: $G_\text{max} = 495$ mT/m; C1: $G_\text{max} = 290$ mT/m), these spatial deviations can be substantial. This analysis quantifies the impact of the full gradient deviation tensor—including both b-scaling and b-rotation—on AxCaliber-SMT axon radius estimates, and evaluates whether a scalar $b_\text{scale}$ correction is sufficient.
+Gradient nonlinearity (GNL) affects diffusion MRI measurements by spatially varying the effective gradient field. The standard scalar b-value correction accounts for changes in gradient *magnitude* (b-scaling), but GNL also rotates the effective gradient direction. For the Connectome scanners, which use high-performance gradient coils, these spatial deviations can be substantial. This analysis quantifies the impact of the full gradient deviation tensor—including both b-scaling and b-rotation—on AxCaliber-SMT axon radius estimates, and evaluates whether a scalar $b_\text{scale}$ correction is sufficient.
 
 ### Method
 
@@ -20,7 +20,7 @@ $$b_\text{scale} = \text{tr}(\mathbf{M}^\top \mathbf{M}) \,/\, 3$$
 
 For each protocol (C2, C1), we load the actual diffusion gradient tables (bvec/bval files) and the gradient deviation maps (grad_dev). The protocol uses 16 b-value shells with $\delta = 8$ ms, $\Delta = 19$ ms (short) or $\Delta = 49$ ms (long), spanning $b = 0.05$–$17.8$ ms/$\mu$m$^2$. Each shell has 32 or 64 gradient directions.
 
-We sample $N = 2000$ white-matter voxels from the WM mask (excluding CSF and GM), and for each voxel draw random ground-truth parameters: axon radius $r \in [0.1, 5]$ $\mu$m, intra-axonal fraction $f \in [0.5, 1]$, CSF fraction $f_\text{csf} \in [0, 0.2]$, and extra-axonal radial diffusivity $D_e^\perp \in [0.5, 1.5]$ $\mu$m$^2$/ms.
+We sample $N = 2000$ white-matter voxels from the WM mask (excluding CSF and GM), and for each voxel draw random ground-truth parameters: axon radius $r \in [0.1, 5]$ $\mu$m, intra-axonal fraction $f \in [0.5, 1]$, CSF fraction $f_\text{csf} \in [0, 0.2]$, and extra-axonal radial diffusivity DeR in [0.5, 1.5] um^2/ms.
 
 For each gradient direction $\hat{g}_k$ in shell $s$, the single-fiber signal is:
 
