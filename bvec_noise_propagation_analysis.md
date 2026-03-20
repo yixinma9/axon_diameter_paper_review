@@ -58,8 +58,8 @@ All fitting uses `AxCaliberSMT.mcmc` from the C2 protocol design library (Lee et
 
 | Protocol | WM voxels | b\_scale range | Directions per shell |
 |----------|-----------|----------------|----------------------|
-| C2 (Gmax=495 mT/m, SNR=38) | 55,358 | [0.778, 1.181] | 32 or 64 |
-| C1 (Gmax=290 mT/m, SNR=18) | 68,490 | [0.817, 1.099] | 32 or 64 |
+| C2 (Gmax=500 mT/m, SNR=38) | 55,358 | [0.778, 1.181] | 32 or 64 |
+| C1 (Gmax=300 mT/m, SNR=18) | 68,490 | [0.817, 1.099] | 32 or 64 |
 
 #### Bias stratified by axon radius
 
