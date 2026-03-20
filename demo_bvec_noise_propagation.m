@@ -293,22 +293,37 @@ for ip = 1:numel(protocols)
 end
 
 %% 8. Filter boundary hits (require all 3 scenarios within bounds)
-r_lb = 0.05; r_ub = 4.95;
+% Aggressive: exclude fits near lower/upper bounds of lsqnonlin [0.05, 5]
+r_lb = 0.15; r_ub = 4.85;
+f_lb = 0.02; f_ub = 0.99;
+fcsf_ub = 0.95;
 pnames = fieldnames(all_results);
 if isempty(pnames); fprintf('No protocols completed. Exiting.\n'); return; end
 
 for ip = 1:numel(pnames)
     R = all_results.(pnames{ip});
-    valid = R.r_fit_base   > r_lb & R.r_fit_base   < r_ub & ...
-            R.r_fit_uncorr > r_lb & R.r_fit_uncorr < r_ub & ...
-            R.r_fit_corr   > r_lb & R.r_fit_corr   < r_ub;
+    % r not near bounds
+    valid_r = R.r_fit_base   > r_lb & R.r_fit_base   < r_ub & ...
+              R.r_fit_uncorr > r_lb & R.r_fit_uncorr < r_ub & ...
+              R.r_fit_corr   > r_lb & R.r_fit_corr   < r_ub;
+    % f not near bounds
+    valid_f = R.f_fit_base   > f_lb & R.f_fit_base   < f_ub & ...
+              R.f_fit_uncorr > f_lb & R.f_fit_uncorr < f_ub & ...
+              R.f_fit_corr   > f_lb & R.f_fit_corr   < f_ub;
+    % fcsf not saturated
+    valid_fcsf = R.fcsf_fit_base < fcsf_ub & ...
+                 R.fcsf_fit_uncorr < fcsf_ub & ...
+                 R.fcsf_fit_corr < fcsf_ub;
+    valid = valid_r & valid_f & valid_fcsf;
     all_results.(pnames{ip}).valid = valid;
     all_results.(pnames{ip}).r_true_filt       = R.r_true(valid);
     all_results.(pnames{ip}).r_fit_base_filt   = R.r_fit_base(valid);
     all_results.(pnames{ip}).r_fit_uncorr_filt = R.r_fit_uncorr(valid);
     all_results.(pnames{ip}).r_fit_corr_filt   = R.r_fit_corr(valid);
     all_results.(pnames{ip}).bscales_filt      = R.bscales(valid);
-    fprintf('%s: %d/%d valid\n', pnames{ip}, sum(valid), numel(valid));
+    fprintf('%s: %d/%d valid (excl: %d r-bound, %d f-bound, %d fcsf-bound)\n', ...
+        pnames{ip}, sum(valid), numel(valid), ...
+        sum(~valid_r), sum(valid_r & ~valid_f), sum(valid_r & valid_f & ~valid_fcsf));
 end
 
 %% 9. Quantitative evaluation — stratified by r
