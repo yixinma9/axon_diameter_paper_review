@@ -15,8 +15,11 @@ clear; close all;
 %       3) Corrected: GNL signal, fit with b*b_scale
 %   - Produce scatter plots, bar plots, error distributions
 
+addpath(genpath('/autofs/space/linen_001/users/Yixin/C2_protocoldesign-main/lib'));
+
 %% 1. Fixed model parameters
 D0 = 2; Da = 1.7; DeL = 1.7; Dcsf = 3;
+model = 'VanGelderen';
 
 %% 2. Protocol definitions (b-values in ms/um^2)
 b_shells = [0.05 0.35 0.8 1.5 2.4 3.45 4.75 6 ...
@@ -26,7 +29,6 @@ Delta_sh = [19*ones(8,1); 49*ones(8,1)];
 Nsh = numel(b_shells);
 bval_targets = round(b_shells * 1000);  % convert to s/mm^2 for matching
 
-g_mag = sqrt(b_shells ./ (delta_sh.^2 .* (Delta_sh - delta_sh/3)));
 g2_sh = b_shells ./ (delta_sh.^2 .* (Delta_sh - delta_sh/3));
 
 %% 3. Protocol paths
@@ -106,9 +108,8 @@ for ip = 1:numel(protocols)
     proto_dirs{ip} = pd;
 end
 
-%% 5. Van Gelderen Bessel zeros
-bm  = [1.8412 5.3314 8.5363 11.7060 14.8636 18.0155 21.1644 24.3113 27.4571 30.6019];
-bm2 = bm.^2;
+%% 5. Van Gelderen Bessel zeros (for signal generation)
+bm2 = [1.8412 5.3314 8.5363 11.7060 14.8636 18.0155 21.1644 24.3113 27.4571 30.6019].^2;
 
 %% 6. Random ground truth (shared across protocols)
 Nsample = 2000;
@@ -179,6 +180,9 @@ for ip = 1:numel(protocols)
 
     snr = protocols(ip).snr;
 
+    % --- Nominal AxCaliberSMT object (for baseline & uncorrected fits) ---
+    smt_nominal = AxCaliberSMT(b_shells, delta_sh, Delta_sh, D0, Da, DeL, Dcsf);
+
     % --- Allocate results for 3 scenarios ---
     r_fit_base   = zeros(N,1); f_fit_base   = zeros(N,1);
     fcsf_fit_base = zeros(N,1); DeR_fit_base = zeros(N,1);
@@ -232,9 +236,8 @@ for ip = 1:numel(protocols)
             continue;
         end
 
-        p = fit_smt(b_shells, g2_sh, delta_sh, Delta_sh, Da, DeL, D0, Dcsf, bm2, S_noisy_base);
-        r_fit_base(i) = p.r; f_fit_base(i) = p.f;
-        fcsf_fit_base(i) = p.fcsf; DeR_fit_base(i) = p.DeR;
+        [r_fit_base(i), f_fit_base(i), fcsf_fit_base(i), DeR_fit_base(i)] = ...
+            smt_nominal.mcmc(S_noisy_base, model, 5);
 
         % === Scenario 2 & 3: GNL signal ===
         S_gnl = zeros(Nsh, 1);
@@ -260,16 +263,14 @@ for ip = 1:numel(protocols)
         S_noisy_gnl = double(abs(S_gnl + 1/snr*n1 + 1j/snr*n2));
 
         % Fit uncorrected (nominal b)
-        p = fit_smt(b_shells, g2_sh, delta_sh, Delta_sh, Da, DeL, D0, Dcsf, bm2, S_noisy_gnl);
-        r_fit_uncorr(i) = p.r; f_fit_uncorr(i) = p.f;
-        fcsf_fit_uncorr(i) = p.fcsf; DeR_fit_uncorr(i) = p.DeR;
+        [r_fit_uncorr(i), f_fit_uncorr(i), fcsf_fit_uncorr(i), DeR_fit_uncorr(i)] = ...
+            smt_nominal.mcmc(S_noisy_gnl, model, 5);
 
         % Fit corrected (b * b_scale_scalar)
         b_corr  = b_shells * b_scale_scalar;
-        g2_corr = b_corr ./ (delta_sh.^2 .* (Delta_sh - delta_sh/3));
-        p = fit_smt(b_corr, g2_corr, delta_sh, Delta_sh, Da, DeL, D0, Dcsf, bm2, S_noisy_gnl);
-        r_fit_corr(i) = p.r; f_fit_corr(i) = p.f;
-        fcsf_fit_corr(i) = p.fcsf; DeR_fit_corr(i) = p.DeR;
+        smt_corr = AxCaliberSMT(b_corr, delta_sh, Delta_sh, D0, Da, DeL, Dcsf);
+        [r_fit_corr(i), f_fit_corr(i), fcsf_fit_corr(i), DeR_fit_corr(i)] = ...
+            smt_corr.mcmc(S_noisy_gnl, model, 5);
     end
     fprintf('  %s done: %.0f s\n', pname, toc);
 
@@ -530,32 +531,3 @@ function C = vg_atten(r, g2_perp, delta, Delta, D0, ~)
     C = C * D0 * g2_perp * td^3;
 end
 
-function pars = fit_smt(b, g2, del, Del, Da, DeL, D0, Dcsf, bm2, S_data)
-    S_data = double(S_data(:));
-    cost = @(x) smt_res(x, b, g2, del, Del, Da, DeL, D0, Dcsf, bm2, S_data);
-    opts = optimoptions('lsqnonlin', 'Display','off', 'MaxIterations',500, ...
-        'FunctionTolerance',1e-12, 'StepTolerance',1e-12);
-    x = lsqnonlin(cost, [2 0.7 0.05 0.8], [0.05 0.01 0 0.01], [5 1 1 DeL], opts);
-    pars = struct('r',x(1),'f',x(2),'fcsf',x(3),'DeR',x(4));
-end
-
-function res = smt_res(x, b, g2, del, Del, Da, DeL, D0, Dcsf, ~, S_data)
-    bm2 = [3.3899 28.4238 72.9367 137.0305 221.0266 324.5583 447.9337 591.1395 753.4878 935.6762];
-    r = x(1); f = x(2); fcsf = x(3); DeR = x(4);
-    N = numel(b);
-    S = zeros(N,1);
-    for is = 1:N
-        td = r^2/D0; C = 0;
-        for k = 1:numel(bm2)
-            bk = bm2(k); bkd = bk*del(is)/td; bkD = bk*Del(is)/td;
-            C = C + (2/(bk^3*(bk-1)))*(-2+2*bkd+2*exp(-bkd)+2*exp(-bkD)-exp(-bkD-bkd)-exp(-bkD+bkd));
-        end
-        C = C*D0*g2(is)*td^3;
-        arg = max(b(is)*Da - C, 1e-10);
-        Sa  = sqrt(pi/(4*arg)) * exp(-C) * erf(sqrt(arg));
-        dDe = max(DeL - DeR, 1e-10);
-        Se  = sqrt(pi/(4*dDe*b(is))) * exp(-b(is)*DeR) * erf(sqrt(b(is)*dDe));
-        S(is) = (1-fcsf)*(f*Sa + (1-f)*Se) + fcsf*exp(-b(is)*Dcsf);
-    end
-    res = min(S,1) - S_data;
-end
