@@ -54,13 +54,15 @@ for ip = 1:numel(protocols)
 
     [bv3, bvals] = load_bvec_bval(protocols(ip).bvec_file, protocols(ip).bval_file);
 
-    % Build per-shell direction tables
+    % Build per-shell direction tables (tolerance-based bval matching)
     dirs_per_shell = cell(Nsh, 1);
     ndirs = zeros(Nsh, 1);
     for is = 1:Nsh
-        idx = find(bvals == bval_targets(is));
+        % Match within 2% or 25 s/mm^2, whichever is larger
+        tol = max(25, 0.02 * bval_targets(is));
+        idx = find(abs(bvals - bval_targets(is)) < tol);
         dirs = bv3(:, idx);
-        % Remove zero-norm directions (shouldn't happen, but safety)
+        % Remove zero-norm directions (b=0 volumes)
         norms = vecnorm(dirs);
         dirs = dirs(:, norms > 0.5);
         dirs_per_shell{is} = dirs;
