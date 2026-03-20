@@ -65,7 +65,20 @@ All fitting uses `AxCaliberSMT.mcmc` from the C2 protocol design library (Lee et
 
 ![Bias by axon radius bin](fig_bvec_bias_bar.png)
 
-For both C2 and C1, the three scenarios (Baseline, Uncorrected, Corrected) produce nearly overlapping bars at every radius bin. The overall bias and RMSE are:
+For both C2 and C1, the three scenarios (Baseline, Uncorrected, Corrected) produce nearly overlapping bars at every radius bin.
+
+| Protocol | r (um) | N | Baseline | Uncorrected | Corrected |
+|----------|:---:|:---:|:---:|:---:|:---:|
+| C2 | 0-1 | 105 | +1.736 | +1.717 | +1.711 |
+| C2 | 1-2 | 149 | +0.815 | +0.803 | +0.792 |
+| C2 | 2-3 | 207 | +0.071 | +0.079 | +0.066 |
+| C2 | 3-4 | 317 | -0.208 | -0.183 | -0.202 |
+| C2 | 4-5 | 294 | -0.383 | -0.363 | -0.396 |
+| C1 | 0-1 | 82 | +2.209 | +2.194 | +2.201 |
+| C1 | 1-2 | 112 | +1.266 | +1.268 | +1.264 |
+| C1 | 2-3 | 120 | +0.459 | +0.469 | +0.454 |
+| C1 | 3-4 | 200 | -0.227 | -0.239 | -0.242 |
+| C1 | 4-5 | 222 | -0.755 | -0.755 | -0.761 |
 
 | Protocol | | Baseline | Uncorrected | Corrected |
 |----------|------|:---:|:---:|:---:|
