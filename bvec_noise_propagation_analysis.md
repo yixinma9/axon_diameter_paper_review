@@ -54,8 +54,55 @@ All fitting uses `AxCaliberSMT.mcmc` from the C2 protocol design library (Lee et
 
 #### Filtering
 
-Voxels where any of the three scenarios produced r\_fit at the optimization bounds (r < 0.05 or r > 4.95 um) are excluded from all statistics and plots.
+Voxels where any of the three scenarios produced r\_fit at the optimization bounds (r < 0.05 or r > 4.95 um), or f\_fit at bounds (f < 0.02 or f > 0.99), are excluded from all statistics and plots.
 
 ### Results
 
-*(To be added)*
+#### Data summary
+
+| Protocol | WM voxels | b\_scale range | Directions per shell | Runtime |
+|----------|-----------|----------------|----------------------|---------|
+| C2 (Gmax=495 mT/m, SNR=38) | 55,358 | [0.778, 1.181] | 32 or 64 | 563 s |
+| C1 (Gmax=290 mT/m, SNR=18) | 68,490 | [0.817, 1.099] | 32 or 64 | 792 s |
+
+After filtering, C2 retains 1072/2000 voxels (excl: 826 r-bound, 102 f-bound) and C1 retains 736/2000 voxels (excl: 1075 r-bound, 189 f-bound). C1 has more boundary hits due to lower SNR.
+
+#### Bias stratified by axon radius
+
+**C2 (Gmax=495 mT/m, SNR=38)**
+
+| r range (um) | N | Bias (Baseline) | Bias (Uncorrected) | Bias (Corrected) |
+|:---:|:---:|:---:|:---:|:---:|
+| 0-0.5 | 33 | +2.093 | +2.074 | +2.068 |
+| 0.5-1.0 | 72 | +1.573 | +1.553 | +1.548 |
+| 1.0-1.5 | 64 | +1.069 | +1.049 | +1.049 |
+| 1.5-2.0 | 85 | +0.623 | +0.618 | +0.599 |
+| 2.0-3.0 | 207 | +0.071 | +0.079 | +0.066 |
+| 3.0-4.0 | 317 | -0.208 | -0.183 | -0.202 |
+| 4.0-5.0 | 294 | -0.383 | -0.363 | -0.396 |
+| **Overall** | **1072** | **+0.130** | **+0.141** | **+0.122** |
+| **RMSE** | | **0.892** | **0.891** | **0.884** |
+
+**C1 (Gmax=290 mT/m, SNR=18)**
+
+| r range (um) | N | Bias (Baseline) | Bias (Uncorrected) | Bias (Corrected) |
+|:---:|:---:|:---:|:---:|:---:|
+| 0-0.5 | 27 | +2.524 | +2.504 | +2.510 |
+| 0.5-1.0 | 55 | +2.054 | +2.042 | +2.050 |
+| 1.0-1.5 | 50 | +1.519 | +1.548 | +1.539 |
+| 1.5-2.0 | 62 | +1.062 | +1.043 | +1.042 |
+| 2.0-3.0 | 120 | +0.459 | +0.469 | +0.454 |
+| 3.0-4.0 | 200 | -0.227 | -0.239 | -0.242 |
+| 4.0-5.0 | 222 | -0.755 | -0.755 | -0.761 |
+| **Overall** | **736** | **+0.224** | **+0.221** | **+0.216** |
+| **RMSE** | | **1.269** | **1.277** | **1.274** |
+
+#### Key observations
+
+1. **GNL b-rotation effect is negligible for AxCaliber-SMT.** Across both protocols, the difference between Baseline, Uncorrected, and Corrected scenarios is minimal (< 0.02 um bias difference). The scalar b\_scale correction captures essentially all of the GNL effect -- b-rotation adds almost no additional error beyond what b-scaling already introduces.
+
+2. **Noise dominates over GNL.** The large positive bias at small r (up to +2.5 um for r < 0.5 um) and the boundary-hit exclusion rate (46% for C2, 63% for C1) are driven by noise, not GNL. The Baseline scenario (no GNL at all) shows nearly identical bias to the GNL scenarios.
+
+3. **C1 has worse performance than C2**, with higher overall bias (+0.22 vs +0.13 um) and RMSE (1.27 vs 0.89 um), consistent with its lower SNR (18 vs 38).
+
+4. **The scalar b\_scale correction is sufficient.** Since the Corrected scenario does not meaningfully outperform the Uncorrected scenario (and both are nearly identical to Baseline), the full per-direction GNL correction provides no practical benefit over the simple scalar b\_scale correction for this model.
