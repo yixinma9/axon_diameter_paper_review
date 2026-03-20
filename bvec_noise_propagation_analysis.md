@@ -63,7 +63,7 @@ All fitting uses `AxCaliberSMT.mcmc` from the C2 protocol design library (Lee et
 
 #### Bias stratified by axon radius
 
-![Bias by axon radius bin](fig_bvec_bias_bar.png)
+![Bias by axon radius bin](fig_bvec_bias_bar_v2.png)
 
 For both C2 and C1, the three scenarios (Baseline, Uncorrected, Corrected) produce nearly overlapping bars at every radius bin.
 
