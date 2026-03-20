@@ -72,6 +72,16 @@ for ip = 1:numel(protocols)
     fprintf('  %s: shells with directions: %s\n', protocols(ip).name, ...
         mat2str(ndirs'));
 
+    % Validate: every shell must have matched directions
+    if any(ndirs == 0)
+        bad = find(ndirs == 0);
+        for ib = 1:numel(bad)
+            fprintf('  WARNING: shell %d (target b=%d) matched 0 directions!\n', ...
+                bad(ib), bval_targets(bad(ib)));
+        end
+        error('Shell matching failed for %s. Check bvec/bval files.', protocols(ip).name);
+    end
+
     % Concatenate all directions and record shell assignment
     all_dirs = cell2mat(dirs_per_shell');     % [3 x total_dirs]
     total_dirs = size(all_dirs, 2);
@@ -216,6 +226,11 @@ for ip = 1:numel(protocols)
             S_base(is) = mean(Sd);
         end
         S_noisy_base = double(abs(S_base + 1/snr*n1 + 1j/snr*n2));
+
+        if any(isnan(S_noisy_base) | isinf(S_noisy_base))
+            fprintf('  WARNING: voxel %d has NaN/Inf in S_noisy_base, skipping\n', i);
+            continue;
+        end
 
         p = fit_smt(b_shells, g2_sh, delta_sh, Delta_sh, Da, DeL, D0, Dcsf, bm2, S_noisy_base);
         r_fit_base(i) = p.r; f_fit_base(i) = p.f;
@@ -505,7 +520,7 @@ function pars = fit_smt(b, g2, del, Del, Da, DeL, D0, Dcsf, bm2, S_data)
     cost = @(x) smt_res(x, b, g2, del, Del, Da, DeL, D0, Dcsf, bm2, S_data);
     opts = optimoptions('lsqnonlin', 'Display','off', 'MaxIterations',500, ...
         'FunctionTolerance',1e-12, 'StepTolerance',1e-12);
-    x = lsqnonlin(cost, [2 0.7 0.05 0.8], [0 0.01 0 0.01], [5 1 1 DeL], opts);
+    x = lsqnonlin(cost, [2 0.7 0.05 0.8], [0.05 0.01 0 0.01], [5 1 1 DeL], opts);
     pars = struct('r',x(1),'f',x(2),'fcsf',x(3),'DeR',x(4));
 end
 
